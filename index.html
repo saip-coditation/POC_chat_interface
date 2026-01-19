@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description"
+    content="AI-Driven Data Access Platform - Connect your business tools and query your data with natural language">
+  <title>DataBridge AI - Ask Your Business Data Anything</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/pages.css">
+  <link rel="stylesheet" href="css/animations.css">
+
+  <!-- Markdown Parser -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+  <div id="app">
+    <!-- Navigation (hidden on login page) -->
+    <nav class="nav" id="main-nav">
+      <div class="nav__container">
+        <a href="#landing" class="nav__brand">
+          <span class="nav__brand-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path
+                d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+              <polyline points="7.5 4.21 12 6.81 16.5 4.21" />
+              <polyline points="7.5 19.79 7.5 14.6 3 12" />
+              <polyline points="21 12 16.5 14.6 16.5 19.79" />
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+              <line x1="12" y1="22.08" x2="12" y2="12" />
+            </svg>
+          </span>
+          DataBridge AI
+        </a>
+        <div class="nav__menu" id="nav-menu">
+          <a href="#dashboard" class="nav__link" data-nav="dashboard">Dashboard</a>
+          <a href="#query" class="nav__link" data-nav="query">Query</a>
+        </div>
+        <div class="nav__user">
+          <div id="auth-links" class="flex gap-4">
+            <a href="#login" class="nav__link" data-nav="login">Login</a>
+            <a href="#register" class="btn btn--primary btn--sm">Sign Up</a>
+          </div>
+          <!-- Theme Toggle Button -->
+          <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme" title="Toggle light/dark theme">
+            <!-- Sun icon (shown in dark mode) -->
+            <svg class="theme-toggle__icon theme-toggle__icon--sun" width="20" height="20" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="5" />
+              <line x1="12" y1="1" x2="12" y2="3" />
+              <line x1="12" y1="21" x2="12" y2="23" />
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+              <line x1="1" y1="12" x2="3" y2="12" />
+              <line x1="21" y1="12" x2="23" y2="12" />
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+            </svg>
+            <!-- Moon icon (shown in light mode) -->
+            <svg class="theme-toggle__icon theme-toggle__icon--moon" width="20" height="20" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+          </button>
+          <button class="btn btn--ghost btn--sm" id="logout-btn">Logout</button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main>
+      <!-- Landing Page -->
+      <section id="page-landing" class="page active">
+        <div class="landing">
+          <div class="hero">
+            <div class="hero__content animate-fadeInUp">
+              <span class="hero__badge">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                </svg>
+                Powered by AI
+              </span>
+              <h1 class="hero__title">
+                Ask Your <span class="hero__title-highlight">Business Data</span> Anything
+              </h1>
+              <p class="hero__subtitle">
+                Connect your Stripe and Zoho CRM accounts, then query your data using natural language. Get instant
+                insights powered by AI.
+              </p>
+
+              <div class="platform-cards">
+                <!-- Stripe Card -->
+                <div class="platform-card platform-card--stripe" data-platform="stripe">
+                  <div class="platform-card__icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                      <path
+                        d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-1.875 0-4.965-.921-6.99-2.109l-.9 5.555C5.175 22.99 8.385 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.591-7.305z" />
+                    </svg>
+                  </div>
+                  <h3 class="platform-card__name">Stripe</h3>
+                  <p class="platform-card__desc">Access payment data, invoices, subscriptions, and customer insights</p>
+                  <button class="btn btn--stripe btn--lg">Connect Stripe</button>
+                </div>
+
+                <!-- Zoho CRM Card -->
+                <div class="platform-card platform-card--zoho" data-platform="zoho">
+                  <div class="platform-card__icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                      <path
+                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
+                    </svg>
+                  </div>
+                  <h3 class="platform-card__name">Zoho CRM</h3>
+                  <p class="platform-card__desc">Query contacts, leads, deals, and sales pipeline data</p>
+                  <button class="btn btn--zoho btn--lg">Connect Zoho</button>
+                </div>
+
+                <!-- GitHub Card -->
+                <div class="platform-card platform-card--github" data-platform="github">
+                  <div class="platform-card__icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                      <path
+                        d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+                    </svg>
+                  </div>
+                  <h3 class="platform-card__name">GitHub</h3>
+                  <p class="platform-card__desc">Query repositories, commits, pull requests, and issues</p>
+                  <button class="btn btn--github btn--lg">Connect GitHub</button>
+                </div>
+              </div>
+
+              <p class="mt-8 text-secondary" style="font-size: var(--font-size-sm);">
+                Already have an account? <a href="#login">Sign in</a> or <a href="#register">Sign up</a>
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Login Page -->
+      <section id="page-login" class="page">
+        <div class="login-page">
+          <div class="login-card animate-scaleIn">
+            <div class="login-card__header">
+              <div class="login-card__logo">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path
+                    d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                </svg>
+              </div>
+              <h1 class="login-card__title">Welcome back</h1>
+              <p class="login-card__subtitle">Sign in to access your connected platforms</p>
+            </div>
+
+            <form class="login-card__form" id="login-form">
+              <div class="form-group">
+                <label class="form-label" for="login-email">Email address</label>
+                <input type="email" id="login-email" class="form-input" placeholder="you@company.com" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="login-password">Password</label>
+                <div class="input-password-wrapper">
+                  <input type="password" id="login-password" class="form-input" placeholder="••••••••" required>
+                  <button type="button" class="input-password-toggle" aria-label="Toggle password visibility">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="login-card__remember">
+                <label><input type="checkbox"> Remember me</label>
+                <a href="#" class="login-card__forgot">Forgot password?</a>
+              </div>
+
+              <button type="submit" class="btn btn--primary btn--lg" style="width: 100%;">Sign in</button>
+            </form>
+
+            <div class="login-card__footer">
+              Don't have an account? <a href="#register">Create an account</a>
+            </div>
+
+            <div class="login-card__demo">
+              <strong>Demo credentials:</strong> demo@example.com / demo123
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Register Page -->
+      <section id="page-register" class="page">
+        <div class="login-page">
+          <div class="login-card animate-scaleIn"
+            style="max-width: 800px; display: flex; gap: var(--space-8); padding: 0; overflow: hidden;">
+            <!-- Sidebar / Quick Start -->
+            <div
+              style="flex: 1; background: var(--bg-hover); padding: var(--space-10); display: flex; flex-direction: column; justify-content: center; border-right: 1px solid var(--border-light);">
+              <h2 style="font-size: var(--font-size-2xl); margin-bottom: var(--space-4);">Quick Start Guide</h2>
+              <p style="color: var(--text-secondary); margin-bottom: var(--space-6);">Complete these steps to start
+                querying your business data in minutes.</p>
+
+              <ul style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: var(--space-6);">
+                <li style="display: flex; gap: var(--space-3);">
+                  <div
+                    style="width: 24px; height: 24px; background: var(--color-primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: var(--font-size-xs);">
+                    1</div>
+                  <div>
+                    <strong style="display: block; font-size: var(--font-size-sm);">Create Account</strong>
+                    <span style="font-size: var(--font-size-xs); color: var(--text-muted);">Join DataBridge AI to get
+                      started.</span>
+                  </div>
+                </li>
+                <li style="display: flex; gap: var(--space-3);">
+                  <div
+                    style="width: 24px; height: 24px; background: var(--color-gray-200); color: var(--text-secondary); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: var(--font-size-xs);">
+                    2</div>
+                  <div>
+                    <strong style="display: block; font-size: var(--font-size-sm);">Prepare Tokens</strong>
+                    <span style="font-size: var(--font-size-xs); color: var(--text-muted);">You'll need a Stripe
+                      <strong>Secret Key</strong> or a Zoho <strong>Refresh Token</strong>.</span>
+                  </div>
+                </li>
+                <li style="display: flex; gap: var(--space-3);">
+                  <div
+                    style="width: 24px; height: 24px; background: var(--color-gray-200); color: var(--text-secondary); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: var(--font-size-xs);">
+                    3</div>
+                  <div>
+                    <strong style="display: block; font-size: var(--font-size-sm);">Connect & Query</strong>
+                    <span style="font-size: var(--font-size-xs); color: var(--text-muted);">Connect your platform and
+                      ask questions in plain English.</span>
+                  </div>
+                </li>
+              </ul>
+
+              <div
+                style="margin-top: var(--space-10); padding: var(--space-4); background: var(--bg-card); border-radius: var(--radius-md); border-left: 4px solid var(--color-stripe);">
+                <p style="font-size: var(--font-size-xs); color: var(--text-secondary);">
+                  <strong>Tip:</strong> For Stripe, log in to your dashboard and look for <strong>Developers > API
+                    Keys</strong>. You'll need the <strong>Secret Key</strong> (starts with <code>sk_</code>).
+                </p>
+              </div>
+            </div>
+
+            <!-- Register Form -->
+            <div style="flex: 1.2; padding: var(--space-10);">
+              <div class="login-card__header" style="text-align: left;">
+                <h1 class="login-card__title">Create Account</h1>
+                <p class="login-card__subtitle">Start your 14-day free trial today</p>
+              </div>
+
+              <form class="login-card__form" id="register-form">
+                <div style="display: flex; gap: var(--space-4);">
+                  <div class="form-group" style="flex: 1;">
+                    <label class="form-label" for="register-first-name">First Name</label>
+                    <input type="text" id="register-first-name" class="form-input" placeholder="John" required>
+                  </div>
+                  <div class="form-group" style="flex: 1;">
+                    <label class="form-label" for="register-last-name">Last Name</label>
+                    <input type="text" id="register-last-name" class="form-input" placeholder="Doe" required>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="register-email">Email address</label>
+                  <input type="email" id="register-email" class="form-input" placeholder="john@company.com" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="register-password">Password</label>
+                  <div class="input-password-wrapper">
+                    <input type="password" id="register-password" class="form-input" placeholder="••••••••" required
+                      minlength="8">
+                    <button type="button" class="input-password-toggle" aria-label="Toggle password visibility">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    </button>
+                  </div>
+                  <p class="form-help">Minimum 8 characters</p>
+                </div>
+
+                <div class="login-card__remember" style="justify-content: flex-start;">
+                  <label style="font-size: var(--font-size-xs);"><input type="checkbox" required> I agree to the <a
+                      href="#">Terms of Service</a> and <a href="#">Privacy Policy</a></label>
+                </div>
+
+                <button type="submit" class="btn btn--primary btn--lg" style="width: 100%;">Create Account</button>
+              </form>
+
+              <div class="login-card__footer" style="text-align: left; border: none; padding-top: var(--space-4);">
+                Already have an account? <a href="#login">Sign in</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Connect Platform Page -->
+      <section id="page-connect" class="page">
+        <div class="connect-page">
+          <div class="connect-card animate-fadeInUp">
+            <div class="connect-card__header">
+              <div class="connect-card__platform-icon" id="connect-platform-icon">
+                <!-- Icon injected by JS -->
+              </div>
+              <div>
+                <h2 class="connect-card__title" id="connect-title">Connect Platform</h2>
+                <p class="connect-card__subtitle" id="connect-subtitle">Enter your API credentials</p>
+              </div>
+            </div>
+
+            <!-- Instructions Section -->
+            <div class="connect-instructions" id="connect-instructions"
+              style="background: var(--color-gray-50); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-6);">
+              <div
+                style="display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); cursor: pointer;"
+                onclick="this.parentElement.classList.toggle('expanded')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)"
+                  stroke-width="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="16" x2="12" y2="12" />
+                  <line x1="12" y1="8" x2="12.01" y2="8" />
+                </svg>
+                <strong style="color: var(--color-primary); font-size: var(--font-size-sm);">How to get your API
+                  Token</strong>
+                <svg id="instructions-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" style="margin-left: auto; transition: transform 0.2s;">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </div>
+
+              <!-- Stripe Instructions -->
+              <div id="stripe-instructions" class="hidden"
+                style="font-size: var(--font-size-sm); color: var(--text-secondary); line-height: 1.6;">
+                <p style="margin-bottom: var(--space-3);"><strong>How to connect your Stripe account:</strong></p>
+                <ol style="padding-left: var(--space-5); margin-bottom: var(--space-3);">
+                  <li style="margin-bottom: var(--space-2);">
+                    Create a Stripe account if you don't have one.
+                    <div style="margin-top: var(--space-2); margin-bottom: var(--space-4);">
+                      <a href="https://dashboard.stripe.com/register" target="_blank" class="btn btn--stripe btn--sm"
+                        style="display: inline-flex; align-items: center; gap: var(--space-2);">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                          <path
+                            d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-1.875 0-4.965-.921-6.99-2.109l-.9 5.555C5.175 22.99 8.385 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.591-7.305z" />
+                        </svg>
+                        Sign up for Stripe
+                      </a>
+                    </div>
+                  </li>
+                  <li>Log in and go to the <a href="https://dashboard.stripe.com/apikeys" target="_blank"
+                      style="color: var(--color-stripe);">Stripe Dashboard → API Keys</a> section.</li>
+                  <li>Locate your <strong>"Secret key"</strong> (this acts as your authentication token).</li>
+                  <li>Click <strong>"Reveal test key"</strong> or <strong>"Reveal live key"</strong>.</li>
+                  <li>Copy the key (starts with <code
+                      style="background: var(--color-gray-200); padding: 2px 6px; border-radius: 4px;">sk_test_</code>
+                    or <code
+                      style="background: var(--color-gray-200); padding: 2px 6px; border-radius: 4px;">sk_live_</code>).
+                  </li>
+                  <li>Paste the key into the <strong>API Secret Key</strong> field below.</li>
+                </ol>
+                <p style="color: var(--color-warning); font-size: var(--font-size-xs);">⚠️ Use <strong>test
+                    keys</strong> for testing. Never share your live keys publicly.</p>
+              </div>
+
+              <!-- Zoho Instructions -->
+              <div id="zoho-instructions" class="hidden"
+                style="font-size: var(--font-size-sm); color: var(--text-secondary); line-height: 1.6;">
+
+                <!-- Tab Toggle for Zoho Options -->
+                <div style="display: flex; gap: var(--space-2); margin-bottom: var(--space-4);">
+                  <button type="button" id="zoho-tab-code" class="btn btn--sm btn--primary"
+                    onclick="App.switchZohoTab('code')">
+                    ✨ Easy (Authorization Code)
+                  </button>
+                  <button type="button" id="zoho-tab-token" class="btn btn--sm btn--secondary"
+                    onclick="App.switchZohoTab('token')">
+                    Manual (Refresh Token)
+                  </button>
+                </div>
+
+                <!-- Authorization Code Method (Recommended) -->
+                <div id="zoho-code-instructions">
+                  <p style="margin-bottom: var(--space-3);"><strong>Quick Connect (Recommended):</strong></p>
+                  <ol style="padding-left: var(--space-5); margin-bottom: var(--space-3);">
+                    <li><strong>Step 1:</strong> Go to <a href="https://api-console.zoho.com/" target="_blank"
+                        style="color: var(--color-zoho);">Zoho API Console</a></li>
+                    <li><strong>Step 2:</strong> Click <strong>"Add Client"</strong> → select <strong>"Self
+                        Client"</strong></li>
+                    <li><strong>Step 3:</strong> In "Generate Code" tab, enter scope: <code
+                        style="background: var(--color-gray-200); padding: 2px 6px; border-radius: 4px;">ZohoCRM.modules.ALL</code>
+                    </li>
+                    <li><strong>Step 4:</strong> Set duration (10 min) and click <strong>"Create"</strong></li>
+                    <li><strong>Step 5:</strong> Copy the <strong>Authorization Code</strong> and paste it below</li>
+                  </ol>
+
+                  <div class="form-group" style="margin-top: var(--space-4);">
+                    <label class="form-label" style="font-size: var(--font-size-xs);">Client Details (Required)</label>
+                    <input type="text" id="zoho-client-id" class="form-input" placeholder="Client ID (e.g. 1000.XXXXX)"
+                      style="margin-bottom: var(--space-2); height: 36px;">
+                    <input type="text" id="zoho-client-secret" class="form-input" placeholder="Client Secret"
+                      style="height: 36px;">
+                    <p class="form-help">Found in Zoho API Console under "Client Secret" tab</p>
+                  </div>
+
+                  <p style="color: var(--color-success); font-size: var(--font-size-xs);">✅ We'll automatically exchange
+                    this for a refresh token!</p>
+                </div>
+
+                <!-- Refresh Token Method (Manual) -->
+                <div id="zoho-token-instructions" class="hidden">
+                  <p style="margin-bottom: var(--space-3);"><strong>Manual Method:</strong></p>
+                  <ol style="padding-left: var(--space-5); margin-bottom: var(--space-3);">
+                    <li><strong>Step 1:</strong> Go to <a href="https://api-console.zoho.com/" target="_blank"
+                        style="color: var(--color-zoho);">Zoho API Console</a></li>
+                    <li><strong>Step 2:</strong> Click <strong>"Add Client"</strong> → select <strong>"Self
+                        Client"</strong></li>
+                    <li><strong>Step 3:</strong> In "Generate Code" tab, enter scope: <code
+                        style="background: var(--color-gray-200); padding: 2px 6px; border-radius: 4px;">ZohoCRM.modules.ALL</code>
+                    </li>
+                    <li><strong>Step 4:</strong> Set time duration (e.g., 10 minutes) and click
+                      <strong>"Create"</strong>
+                    </li>
+                    <li><strong>Step 5:</strong> Copy the generated <strong>code</strong></li>
+                    <li><strong>Step 6:</strong> Go to "Generate Token" tab, paste the code, click
+                      <strong>"Create"</strong>
+                    </li>
+                    <li><strong>Step 7:</strong> Copy the <strong>Refresh Token</strong> and paste it below</li>
+                  </ol>
+                </div>
+
+                <p style="color: var(--color-warning); font-size: var(--font-size-xs); margin-top: var(--space-3);">⚠️
+                  Backend needs
+                  <code
+                    style="background: var(--color-gray-200); padding: 2px 4px; border-radius: 3px;">ZOHO_CLIENT_ID</code>
+                  and
+                  <code
+                    style="background: var(--color-gray-200); padding: 2px 4px; border-radius: 3px;">ZOHO_CLIENT_SECRET</code>
+                  in .env
+                </p>
+              </div>
+
+              <!-- GitHub Instructions -->
+              <div id="github-instructions" class="hidden"
+                style="font-size: var(--font-size-sm); color: var(--text-secondary); line-height: 1.6;">
+                <p style="margin-bottom: var(--space-3);"><strong>How to connect your GitHub account:</strong></p>
+                <ol style="padding-left: var(--space-5); margin-bottom: var(--space-3);">
+                  <li>Go to <a href="https://github.com/settings/tokens" target="_blank"
+                      style="color: var(--color-github-accent);">GitHub → Settings → Developer settings → Personal
+                      access tokens</a>.</li>
+                  <li>Click <strong>"Generate new token (classic)"</strong>.</li>
+                  <li>Give it a descriptive name like <strong>"DataBridge AI"</strong>.</li>
+                  <li>Select the <strong>repo</strong> scope (for full repository access).</li>
+                  <li>Click <strong>"Generate token"</strong> and copy it immediately.</li>
+                </ol>
+                <p style="color: var(--color-warning); font-size: var(--font-size-xs);">⚠️ Store your token securely.
+                  You won't be able to see it again!</p>
+              </div>
+            </div>
+
+            <form id="connect-form">
+              <div class="form-group">
+                <label class="form-label" for="api-key" id="api-key-label">API Secret Key</label>
+                <input type="text" id="api-key" class="form-input" placeholder="Enter your API token..." required
+                  autocomplete="off">
+                <p class="form-help" id="api-key-help">Your credentials are encrypted and never shared with AI services.
+                </p>
+              </div>
+
+              <div class="flex gap-4">
+                <button type="button" class="btn btn--secondary" id="connect-cancel">Cancel</button>
+                <button type="submit" class="btn btn--primary" id="connect-submit" style="flex: 1;">
+                  Validate & Connect
+                </button>
+              </div>
+            </form>
+
+            <!-- Status messages -->
+            <div class="connect-card__status connect-card__status--success hidden" id="connect-success">
+              <svg class="connect-card__status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
+              </svg>
+              <span>Successfully connected!</span>
+            </div>
+
+            <div class="connect-card__status connect-card__status--error hidden" id="connect-error">
+              <svg class="connect-card__status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="15" y1="9" x2="9" y2="15" />
+                <line x1="9" y1="9" x2="15" y2="15" />
+              </svg>
+              <span id="connect-error-message">Invalid credentials. Please check your API key.</span>
+            </div>
+
+            <div class="connect-card__masked-key hidden" id="masked-key-display">
+              API Key: <span id="masked-key-value"></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Dashboard Page -->
+      <section id="page-dashboard" class="page">
+        <div class="dashboard container">
+          <div class="dashboard__header">
+            <h1 class="dashboard__title">Dashboard</h1>
+            <p class="dashboard__subtitle">Manage your connected platforms</p>
+          </div>
+
+          <div class="dashboard__grid" id="dashboard-grid">
+            <!-- Platform cards injected by JS -->
+          </div>
+
+          <!-- Empty state -->
+          <div class="empty-state" id="dashboard-empty">
+            <div class="empty-state__icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <line x1="3" y1="9" x2="21" y2="9" />
+                <line x1="9" y1="21" x2="9" y2="9" />
+              </svg>
+            </div>
+            <h3 class="empty-state__title">No platforms connected</h3>
+            <p class="empty-state__text">Connect Stripe or Zoho CRM to start querying your data</p>
+            <a href="#landing" class="btn btn--primary">Connect a Platform</a>
+          </div>
+
+          <div class="disclaimer mt-8">
+            <span>Your credentials are encrypted and stored securely. They are never shared with AI services or third
+              parties.</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Query Interface Page -->
+      <section id="page-query" class="page">
+        <div class="query-page">
+          <div class="query-header">
+            <h1 class="query-header__title">Ask Your Data</h1>
+            <p class="query-header__subtitle">Query your connected platforms using natural language</p>
+            <div class="query-header__platforms" id="query-platforms">
+              <!-- Connected platform badges injected by JS -->
+            </div>
+
+            <!-- Agent Logs Panel -->
+            <div id="agent-logs-panel" class="agent-logs hidden">
+              <div class="agent-logs__header">
+                <span class="agent-logs__title">Agent Activity</span>
+                <button class="agent-logs__close"
+                  onclick="document.getElementById('agent-logs-panel').classList.add('hidden')">&times;</button>
+              </div>
+              <div class="agent-logs__content" id="agent-logs-content">
+                <!-- Logs injected here -->
+              </div>
+            </div>
+
+            <!-- Session Tabs -->
+            <div class="session-tabs">
+              <button class="session-tab session-tab--active" data-session="all">All</button>
+              <button class="session-tab" data-session="stripe">
+                <span class="session-tab__icon">
+                  <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
+                    <path
+                      d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-1.875 0-4.965-.921-6.99-2.109l-.9 5.555C5.175 22.99 8.385 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.591-7.305z" />
+                  </svg>
+                </span>
+                Stripe
+              </button>
+              <button class="session-tab" data-session="zoho">
+                <span class="session-tab__icon">
+                  <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
+                    <path
+                      d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
+                  </svg>
+                </span>
+                Zoho
+              </button>
+              <button class="session-tab" data-session="github">
+                <span class="session-tab__icon">
+                  <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
+                    <path
+                      d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+                  </svg>
+                </span>
+                GitHub
+              </button>
+            </div>
+
+            <div class="chat-container" id="chat-container">
+              <!-- Welcome state -->
+              <div class="chat-welcome" id="chat-welcome">
+                <div class="chat-welcome__icon">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                </div>
+                <h2 class="chat-welcome__title">What would you like to know?</h2>
+                <p class="chat-welcome__text">Ask questions about your business data in plain English</p>
+
+                <div class="example-queries">
+                  <button class="example-query" data-query="Show unpaid invoices" data-platform="stripe">
+                    <svg class="example-query__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                      stroke-width="2">
+                      <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                      <line x1="1" y1="10" x2="23" y2="10" />
+                    </svg>
+                    Show unpaid invoices
+                  </button>
+                  <button class="example-query" data-query="Show my recent deals" data-platform="zoho">
+                    <svg class="example-query__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                      stroke-width="2">
+                      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                      <polyline points="14 2 14 8 20 8" />
+                    </svg>
+                    Show recent deals
+                  </button>
+                  <button class="example-query" data-query="Revenue this month" data-platform="stripe">
+                    <svg class="example-query__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                      stroke-width="2">
+                      <line x1="12" y1="1" x2="12" y2="23" />
+                      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                    </svg>
+                    Revenue this month
+                  </button>
+                  <button class="example-query" data-query="List all contacts" data-platform="zoho">
+                    <svg class="example-query__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                      stroke-width="2">
+                      <circle cx="12" cy="12" r="10" />
+                      <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                    List all contacts
+                  </button>
+                </div>
+              </div>
+
+              <!-- Chat messages container -->
+              <div id="chat-messages"></div>
+            </div>
+
+            <div class="chat-input-container">
+              <form class="chat-input-wrapper" id="query-form">
+                <input type="text" class="chat-input" id="query-input" placeholder="Ask anything about your data..."
+                  autocomplete="off">
+                <button type="submit" class="chat-send-btn" id="query-submit" disabled>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="22" y1="2" x2="11" y2="13" />
+                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                  </svg>
+                </button>
+              </form>
+            </div>
+          </div>
+      </section>
+    </main>
+
+    <!-- Security Footer -->
+    <footer class="security-footer" id="security-footer">
+      Your credentials are encrypted and never shared with AI services.
+    </footer>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/utils.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+</body>
+
+</html>

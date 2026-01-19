@@ -1,0 +1,342 @@
+/* ==========================================================================
+   Animations & Transitions
+   ========================================================================== */
+
+/* Fade animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Slide animations */
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Scale animations */
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
+@keyframes bounce {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-5px);
+    }
+}
+
+/* Spinner */
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Processing dots */
+@keyframes dots {
+
+    0%,
+    20% {
+        content: '.';
+    }
+
+    40% {
+        content: '..';
+    }
+
+    60%,
+    100% {
+        content: '...';
+    }
+}
+
+/* Shimmer / Skeleton */
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+/* Typing indicator */
+@keyframes typingDot {
+
+    0%,
+    60%,
+    100% {
+        transform: translateY(0);
+        opacity: 0.6;
+    }
+
+    30% {
+        transform: translateY(-4px);
+        opacity: 1;
+    }
+}
+
+/* Animation utility classes */
+.animate-fadeIn {
+    animation: fadeIn var(--transition-base) ease forwards;
+}
+
+.animate-fadeInUp {
+    animation: fadeInUp var(--transition-slow) ease forwards;
+}
+
+.animate-fadeInDown {
+    animation: fadeInDown var(--transition-slow) ease forwards;
+}
+
+.animate-slideInRight {
+    animation: slideInRight var(--transition-slow) ease forwards;
+}
+
+.animate-slideInLeft {
+    animation: slideInLeft var(--transition-slow) ease forwards;
+}
+
+.animate-scaleIn {
+    animation: scaleIn var(--transition-base) ease forwards;
+}
+
+.animate-pulse {
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.animate-bounce {
+    animation: bounce 1s ease-in-out infinite;
+}
+
+/* Staggered animations */
+.stagger-1 {
+    animation-delay: 0.1s;
+}
+
+.stagger-2 {
+    animation-delay: 0.2s;
+}
+
+.stagger-3 {
+    animation-delay: 0.3s;
+}
+
+.stagger-4 {
+    animation-delay: 0.4s;
+}
+
+.stagger-5 {
+    animation-delay: 0.5s;
+}
+
+/* Skeleton loader */
+.skeleton {
+    background: linear-gradient(90deg, var(--color-gray-100) 25%, var(--color-gray-200) 50%, var(--color-gray-100) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: var(--radius-md);
+}
+
+.skeleton--text {
+    height: 16px;
+    width: 100%;
+    margin-bottom: var(--space-2);
+}
+
+.skeleton--text:last-child {
+    width: 60%;
+}
+
+.skeleton--title {
+    height: 24px;
+    width: 50%;
+    margin-bottom: var(--space-4);
+}
+
+.skeleton--avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+}
+
+.skeleton--card {
+    height: 120px;
+    width: 100%;
+}
+
+/* Typing indicator */
+.typing-indicator {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: var(--space-3) var(--space-4);
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    width: fit-content;
+}
+
+.typing-indicator__dot {
+    width: 8px;
+    height: 8px;
+    background: var(--color-gray-400);
+    border-radius: 50%;
+    animation: typingDot 1.4s ease-in-out infinite;
+}
+
+.typing-indicator__dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.typing-indicator__dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+/* Progress bar */
+.progress-bar {
+    height: 4px;
+    background: var(--color-gray-200);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.progress-bar__fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-primary), var(--color-zendesk-accent));
+    border-radius: var(--radius-full);
+    transition: width var(--transition-slow) ease;
+}
+
+/* Page transitions */
+.page-enter {
+    animation: fadeInUp 0.3s ease forwards;
+}
+
+.page-exit {
+    animation: fadeIn 0.2s ease reverse forwards;
+}
+
+/* Message animation */
+.message-enter {
+    animation: slideInRight 0.3s ease forwards;
+}
+
+.message-enter--user {
+    animation: slideInLeft 0.3s ease forwards;
+}
+
+/* Button loading state */
+.btn--loading {
+    position: relative;
+    color: transparent !important;
+    pointer-events: none;
+}
+
+.btn--loading::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    top: 50%;
+    left: 50%;
+    margin: -8px 0 0 -8px;
+}
+
+.btn--primary.btn--loading::after {
+    border-top-color: var(--text-inverse);
+}
+
+/* Hover lift effect */
+.hover-lift {
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+/* Focus ring */
+.focus-ring:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
