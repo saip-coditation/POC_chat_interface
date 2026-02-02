@@ -253,6 +253,7 @@ const App = {
         } else {
           App.navigate('dashboard');
         }
+        App.updateUI();
       } else {
         App.showToast(result.error || 'Login failed', 'error');
       }
@@ -272,6 +273,7 @@ const App = {
     State.clearUser();
     App.showToast('Signed out successfully', 'info');
     App.navigate('landing');
+    App.updateUI();
   },
 
   /**

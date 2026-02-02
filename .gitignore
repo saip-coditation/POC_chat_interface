@@ -16,3 +16,6 @@ venv.bak/
 db.sqlite3
 *.log
 .DS_Store
+
+# Documentation
+PROJECT_HANDOVER.md
