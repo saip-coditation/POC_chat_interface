@@ -34,11 +34,17 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     
-    # Local apps
+    # Local apps - existing
     'apps.authentication',
     'apps.platforms',
     'apps.queries',
+    
+    # Local apps - AI Data Orchestration Platform
+    'catalog',
+    'orchestrator',
+    'audit',
 ]
+
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',

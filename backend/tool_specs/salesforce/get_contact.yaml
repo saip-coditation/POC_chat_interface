@@ -1,0 +1,20 @@
+tool_id: salesforce.get_contact
+name: Get Salesforce Contact
+description: Search for a contact in Salesforce by name, email, or partial match.
+platform: salesforce
+category: CRM
+governance_class: READ
+inputs:
+  name:
+    type: string
+    description: The name of the person to find.
+example_queries:
+  - "Find phone number for Alice"
+  - "Get details for Bob Smith"
+  - "Who is Charlie?"
+  - "Search Salesforce for David"
+  - "Contact info for Eve"
+  - "Show me Frank's profile"
+  - "Look up Grace in Salesforce"
+  - "details for Globex employee"
+  - "person working at Acme"

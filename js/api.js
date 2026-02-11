@@ -32,6 +32,18 @@ const API = {
             icon: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>`,
             helpUrl: 'https://github.com/settings/tokens',
             description: 'Enter your Personal Access Token'
+        },
+        trello: {
+            name: 'Trello',
+            icon: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.333 1.333H4.667C2.827 1.333 1.333 2.827 1.333 4.667v14.666c0 1.84 1.494 3.334 3.334 3.334h14.666c1.84 0 3.334-1.494 3.334-3.334V4.667c0-1.84-1.494-3.334-3.334-3.334zM10.667 17.333h-4V5.333h4v12zm8.666-4.666h-4V5.333h4v7.334z"/></svg>`,
+            helpUrl: 'https://trello.com/power-ups/admin',
+            description: 'Enter your API Key and Token separated by a colon (KEY:TOKEN)'
+        },
+        salesforce: {
+            name: 'Salesforce',
+            icon: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M10.006 5a4.5 4.5 0 0 1 4.26 3.052A3.75 3.75 0 0 1 17.97 11.6a3.75 3.75 0 0 1-.469 7.4H5.25a4.35 4.35 0 0 1-.81-8.624A4.5 4.5 0 0 1 10.006 5z"/></svg>`,
+            helpUrl: 'https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/',
+            description: 'Enter ACCESS_TOKEN:INSTANCE_URL'
         }
     },
 
@@ -93,18 +105,53 @@ const API = {
 
             // If 401, try to refresh token
             if (response.status === 401 && API.refreshToken) {
+                console.log('[API] 401 Unauthorized, attempting token refresh...');
                 const refreshed = await API.refreshAccessToken();
                 if (refreshed) {
+                    console.log('[API] Token refreshed successfully, retrying request...');
                     // Retry with new token
                     headers['Authorization'] = `Bearer ${API.accessToken}`;
                     response = await fetch(url, { ...options, headers });
+                } else {
+                    console.error('[API] Token refresh failed, user needs to log in again');
+                    // Redirect to login if refresh fails
+                    if (window.location.hash !== '#login') {
+                        window.location.hash = '#login';
+                        // Show error message
+                        if (window.App && window.App.showToast) {
+                            window.App.showToast('Your session has expired. Please log in again.', 'error');
+                        }
+                    }
                 }
             }
 
-            const data = await response.json();
+            // Check if response is JSON before parsing
+            let data;
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                data = await response.json();
+            } else {
+                const text = await response.text();
+                throw new Error(`Server error: ${response.status} ${response.statusText}`);
+            }
 
             if (!response.ok) {
-                throw new Error(data.error || data.detail || 'Request failed');
+                // Handle authentication errors specifically
+                if (response.status === 401) {
+                    const errorMsg = data.detail || data.error || 'Authentication failed';
+                    if (errorMsg.includes('token') || errorMsg.includes('Given token')) {
+                        API.clearTokens();
+                        // Redirect to login if not already there
+                        if (window.location.hash !== '#login') {
+                            window.location.hash = '#login';
+                            if (window.App && window.App.showToast) {
+                                window.App.showToast('Your session has expired. Please log in again.', 'error');
+                            }
+                        }
+                        throw new Error('Your session has expired. Please log in again.');
+                    }
+                }
+                throw new Error(data.error || data.detail || `Request failed: ${response.status}`);
             }
 
             return data;
@@ -288,6 +335,60 @@ const API = {
     },
 
     /**
+     * Generate PKCE code verifier and challenge for Salesforce OAuth
+     */
+    async generatePKCE() {
+        // Generate random code verifier
+        const array = new Uint8Array(40);
+        crypto.getRandomValues(array);
+        const codeVerifier = btoa(String.fromCharCode(...array))
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/=/g, '');
+
+        // Generate code challenge (SHA-256 hash of verifier)
+        const encoder = new TextEncoder();
+        const data = encoder.encode(codeVerifier);
+        const digest = await crypto.subtle.digest('SHA-256', data);
+        const codeChallenge = btoa(String.fromCharCode(...new Uint8Array(digest)))
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/=/g, '');
+
+        return { codeVerifier, codeChallenge };
+    },
+
+    /**
+     * Get Salesforce OAuth authorization URL
+     */
+    getSalesforceAuthUrl(clientId, codeChallenge, redirectUri = 'https://login.salesforce.com/services/oauth2/success') {
+        const params = new URLSearchParams({
+            response_type: 'code',
+            client_id: clientId,
+            redirect_uri: redirectUri,
+            code_challenge: codeChallenge,
+            code_challenge_method: 'S256'
+        });
+        return `https://login.salesforce.com/services/oauth2/authorize?${params.toString()}`;
+    },
+
+    /**
+     * Exchange Salesforce authorization code for access token and connect
+     */
+    async exchangeSalesforceCode(authorizationCode, codeVerifier, clientId, clientSecret, redirectUri = 'https://login.salesforce.com/services/oauth2/success') {
+        return await API.request('/platforms/salesforce/exchange-code/', {
+            method: 'POST',
+            body: JSON.stringify({
+                code: authorizationCode,
+                code_verifier: codeVerifier,
+                client_id: clientId,
+                client_secret: clientSecret,
+                redirect_uri: redirectUri
+            })
+        });
+    },
+
+    /**
      * Reverify platform credentials
      */
     async reverifyPlatform(platformId, apiKey) {
@@ -305,6 +406,68 @@ const API = {
             method: 'POST',
             body: JSON.stringify({ query, platform })
         });
+    },
+
+    /**
+     * Process a query with streaming response (for real-time logs)
+     */
+    async processQueryStream(query, platform = '', onChunk) {
+        return await API.streamRequest('/queries/process/', {
+            method: 'POST',
+            body: JSON.stringify({ query, platform })
+        }, onChunk);
+    },
+
+    /**
+     * Make a streaming API request
+     */
+    async streamRequest(endpoint, options = {}, onChunk) {
+        const url = `${API.baseUrl}${endpoint}`;
+        const headers = {
+            'Content-Type': 'application/json',
+            ...(options.headers || {})
+        };
+
+        if (API.accessToken) {
+            headers['Authorization'] = `Bearer ${API.accessToken}`;
+        }
+
+        try {
+            const response = await fetch(url, {
+                ...options,
+                headers
+            });
+
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                throw new Error(data.error || data.detail || 'Request failed');
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value, { stream: true });
+                const lines = chunk.split('\n');
+
+                for (const line of lines) {
+                    if (line.trim()) {
+                        try {
+                            const data = JSON.parse(line);
+                            if (onChunk) onChunk(data);
+                        } catch (e) {
+                            console.warn("Stream parse error for line:", line);
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Stream request error:', error);
+            throw error;
+        }
     },
 
     /**

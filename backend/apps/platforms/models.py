@@ -13,6 +13,8 @@ class PlatformConnection(models.Model):
         ('stripe', 'Stripe'),
         ('zoho', 'Zoho CRM'),
         ('github', 'GitHub'),
+        ('trello', 'Trello'),
+        ('salesforce', 'Salesforce'),
     ]
     
     user = models.ForeignKey(

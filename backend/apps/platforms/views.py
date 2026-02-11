@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from utils.encryption import encrypt_api_key, decrypt_api_key
-from utils import stripe_client, zoho_client, github_client
+from utils import stripe_client, zoho_client, github_client, trello_client, salesforce_client
 from .models import PlatformConnection
 from .serializers import (
     PlatformConnectionSerializer,
@@ -54,6 +54,7 @@ class ConnectPlatformView(APIView):
         
         platform = serializer.validated_data['platform']
         api_key = serializer.validated_data['api_key']
+        metadata_update = {}
         
         # Validate credentials with the platform
         if platform == 'stripe':
@@ -64,6 +65,63 @@ class ConnectPlatformView(APIView):
         elif platform == 'github':
             validation = github_client.validate_token(api_key)
             logger.info(f"GitHub validation result: {validation}")
+        elif platform == 'trello':
+            # Trello requires Key + Token. We expect "KEY:TOKEN"
+            try:
+                if ':' not in api_key:
+                    return Response({
+                        'success': False,
+                        'error': 'Invalid format. Please enter "API_KEY:TOKEN"'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                t_key, t_token = api_key.split(':', 1)
+                validation = trello_client.validate_credentials(t_key.strip(), t_token.strip())
+                
+                # If valid, we store the TOKEN as the secret, and KEY in metadata
+                if validation.get('valid'):
+                    # OVERWRITE api_key with just the token for storage
+                    api_key = t_token.strip() 
+                    metadata_update['trello_key'] = t_key.strip()
+                    
+            except Exception as e:
+                logger.error(f"Trello parsing error: {e}")
+                validation = {'valid': False, 'error': 'Failed to parse Trello credentials'}
+        elif platform == 'salesforce':
+            # Salesforce: Accept ACCESS_TOKEN:INSTANCE_URL (from Authorization Code flow)
+            try:
+                if ':' not in api_key:
+                    return Response({
+                        'success': False,
+                        'error': 'Invalid format. Please enter "ACCESS_TOKEN:INSTANCE_URL"'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Split only on first colon (access_token may contain special chars)
+                parts = api_key.split(':', 1)
+                if len(parts) != 2:
+                    return Response({
+                        'success': False,
+                        'error': 'Invalid format. Please enter "ACCESS_TOKEN:INSTANCE_URL"'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                access_token = parts[0].strip()
+                instance_url = parts[1].strip()
+                
+                # Validate by making a test API call
+                import requests
+                test_url = f"{instance_url}/services/data/v57.0/sobjects/"
+                headers = {'Authorization': f'Bearer {access_token}'}
+                test_resp = requests.get(test_url, headers=headers, timeout=10)
+                
+                if test_resp.status_code == 200:
+                    validation = {'valid': True}
+                    api_key = access_token
+                    metadata_update['instance_url'] = instance_url
+                else:
+                    validation = {'valid': False, 'error': f'API test failed: {test_resp.text[:100]}'}
+                    
+            except Exception as e:
+                logger.error(f"Salesforce parsing error: {e}")
+                validation = {'valid': False, 'error': f'Failed to validate Salesforce credentials: {str(e)}'}
         else:
             return Response({
                 'success': False,
@@ -86,7 +144,8 @@ class ConnectPlatformView(APIView):
                 encrypted_api_key=encrypted_key,
                 is_valid=True,
                 metadata={
-                    'last_four': api_key[-4:],
+                'last_four': api_key[-4:],
+                    **metadata_update, 
                     **{k: v for k, v in validation.items() if k != 'valid'}
                 }
             )
@@ -157,6 +216,7 @@ class ReverifyPlatformView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
         
         api_key = serializer.validated_data['api_key']
+        metadata_update = {}
         
         # Validate new credentials
         if connection.platform == 'stripe':
@@ -165,6 +225,23 @@ class ReverifyPlatformView(APIView):
             validation = zoho_client.validate_credentials(api_key)
         elif connection.platform == 'github':
             validation = github_client.validate_token(api_key)
+        elif connection.platform == 'trello':
+            # Trello requires Key + Token. "KEY:TOKEN"
+            try:
+                if ':' not in api_key:
+                    return Response({
+                        'success': False,
+                        'error': 'Invalid format. Please enter "API_KEY:TOKEN"'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                t_key, t_token = api_key.split(':', 1)
+                validation = trello_client.validate_credentials(t_key.strip(), t_token.strip())
+                
+                if validation.get('valid'):
+                    api_key = t_token.strip()
+                    metadata_update['trello_key'] = t_key.strip()
+            except Exception as e:
+                validation = {'valid': False, 'error': f'Failed to parse Trello credentials {e}'}
         else:
             return Response({
                 'success': False,
@@ -186,6 +263,7 @@ class ReverifyPlatformView(APIView):
             connection.is_valid = True
             connection.metadata = {
                 'last_four': api_key[-4:],
+                **metadata_update,
                 **{k: v for k, v in validation.items() if k != 'valid'}
             }
             connection.save()
@@ -297,3 +375,124 @@ class ZohoCodeExchangeView(APIView):
                 'success': False,
                 'error': 'Failed to save connection'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class SalesforceCodeExchangeView(APIView):
+    """Exchange Salesforce authorization code for access token."""
+    
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        import requests
+        
+        authorization_code = request.data.get('code')
+        code_verifier = request.data.get('code_verifier')
+        client_id = request.data.get('client_id')
+        client_secret = request.data.get('client_secret')
+        redirect_uri = request.data.get('redirect_uri', 'https://login.salesforce.com/services/oauth2/success')
+        
+        if not authorization_code:
+            return Response({
+                'success': False,
+                'error': 'Authorization code is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not code_verifier:
+            return Response({
+                'success': False,
+                'error': 'Code verifier is required for PKCE flow'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if Salesforce is already connected
+        if PlatformConnection.objects.filter(user=request.user, platform='salesforce').exists():
+            return Response({
+                'success': False,
+                'error': 'Salesforce is already connected. Disconnect first to reconnect.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Exchange authorization code for tokens
+        token_url = 'https://login.salesforce.com/services/oauth2/token'
+        payload = {
+            'grant_type': 'authorization_code',
+            'client_id': client_id,
+            'client_secret': client_secret,
+            'redirect_uri': redirect_uri,
+            'code': authorization_code,
+            'code_verifier': code_verifier
+        }
+        
+        try:
+            token_resp = requests.post(token_url, data=payload, timeout=30)
+            token_data = token_resp.json()
+            
+            if token_resp.status_code != 200:
+                logger.error(f"Salesforce token exchange failed: {token_data}")
+                return Response({
+                    'success': False,
+                    'error': token_data.get('error_description', 'Token exchange failed')
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            access_token = token_data.get('access_token')
+            refresh_token = token_data.get('refresh_token')
+            instance_url = token_data.get('instance_url')
+            
+            if not access_token or not instance_url:
+                return Response({
+                    'success': False,
+                    'error': 'Invalid token response from Salesforce'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Validate the token by making a test API call
+            test_url = f"{instance_url}/services/data/v57.0/sobjects/"
+            headers = {'Authorization': f'Bearer {access_token}'}
+            test_resp = requests.get(test_url, headers=headers, timeout=10)
+            
+            if test_resp.status_code != 200:
+                return Response({
+                    'success': False,
+                    'error': 'Token validation failed'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Save the connection
+            encrypted_key = encrypt_api_key(access_token)
+            
+            metadata = {
+                'instance_url': instance_url,
+                'last_four': access_token[-4:],
+                'message': 'Salesforce connected successfully',
+                # Store credentials for refresh
+                'client_id': client_id,
+                'client_secret': client_secret
+            }
+            
+            # Store refresh token if available
+            if refresh_token:
+                metadata['refresh_token_encrypted'] = encrypt_api_key(refresh_token)
+            
+            connection = PlatformConnection.objects.create(
+                user=request.user,
+                platform='salesforce',
+                encrypted_api_key=encrypted_key,
+                is_valid=True,
+                metadata=metadata
+            )
+            
+            return Response({
+                'success': True,
+                'message': 'Salesforce connected successfully!',
+                'platform': PlatformConnectionSerializer(connection).data
+            }, status=status.HTTP_201_CREATED)
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Salesforce connection error: {e}")
+            return Response({
+                'success': False,
+                'error': f'Connection error: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            logger.error(f"Failed to save Salesforce connection: {e}")
+            return Response({
+                'success': False,
+                'error': 'Failed to save connection'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+

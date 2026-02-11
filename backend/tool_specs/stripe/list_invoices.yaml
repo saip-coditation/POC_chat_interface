@@ -1,0 +1,78 @@
+# Stripe List Invoices ToolSpec
+# Retrieves a list of invoices from Stripe
+
+tool_id: "stripe.list_invoices"
+version: "1.0.0"
+platform: "stripe"
+category: "DATA_QUERY"
+governance_class: "READ"
+
+description: |
+  List all invoices from Stripe. Can filter by customer, status, 
+  and date range. Supports pagination for large result sets.
+
+semantic_description: |
+  Use this tool when the user wants to see invoices, payments, 
+  billing history, or revenue information from Stripe.
+
+example_queries:
+  - "Show me all paid invoices"
+  - "List invoices from last month"
+  - "Get invoices for customer John"
+  - "What's the billing history?"
+  - "Show me recent payments"
+
+endpoint:
+  method: "GET"
+  path: "/v1/invoices"
+
+parameters:
+  - name: "customer"
+    type: "string"
+    required: false
+    description: "Filter by customer ID"
+    entity_type: "stripe_customer_id"
+  
+  - name: "status"
+    type: "enum"
+    required: false
+    description: "Filter by invoice status"
+    values:
+      - "draft"
+      - "open"
+      - "paid"
+      - "uncollectible"
+      - "void"
+  
+  - name: "created_gte"
+    type: "datetime"
+    required: false
+    description: "Filter invoices created after this date"
+  
+  - name: "created_lte"
+    type: "datetime"
+    required: false
+    description: "Filter invoices created before this date"
+  
+  - name: "limit"
+    type: "integer"
+    required: false
+    default: 50
+    description: "Maximum number of invoices to return"
+
+pagination:
+  strategy: "cursor"
+  cursor_param: "starting_after"
+  limit_param: "limit"
+  max_limit: 100
+  default_limit: 50
+
+response:
+  data_path: "data"
+  entity_mapping:
+    id: "invoice_id"
+    customer: "customer_id"
+    amount_due: "amount"
+    amount_paid: "amount_paid"
+    status: "status"
+    created: "created_at"

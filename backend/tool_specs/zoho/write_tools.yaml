@@ -1,0 +1,39 @@
+# Zoho Write Tools
+# Class: WRITE
+# Governance: Requires confirmation/approval
+
+- tool_id: zoho.create_record
+  platform: zoho
+  description: Create a new record (Lead) in Zoho CRM.
+  category: DATA_WRITE
+  governance_class: WRITE
+  params:
+    object:
+      type: string
+      description: The type of object to create (Lead).
+      required: true
+    data:
+      type: object
+      description: "JSON object containing the field values for the record (e.g., {'Last_Name': 'Doe', 'Company': 'Acme'})."
+      required: true
+  semantic_description: Create a new lead/record in Zoho CRM.
+
+- tool_id: zoho.update_record
+  platform: zoho
+  description: Update an existing record in Zoho CRM.
+  category: DATA_WRITE
+  governance_class: WRITE
+  params:
+    object:
+      type: string
+      description: The type of object to update (Deal).
+      required: true
+    id:
+      type: string
+      description: The ID of the record to update.
+      required: true
+    data:
+      type: object
+      description: "JSON object containing the fields to update (e.g., {'Stage': 'Closed Won'})."
+      required: true
+  semantic_description: Update an existing record/deal in Zoho CRM.

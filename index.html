@@ -140,6 +140,34 @@
                   <p class="platform-card__desc">Query repositories, commits, pull requests, and issues</p>
                   <button class="btn btn--github btn--lg">Connect GitHub</button>
                 </div>
+
+                <!-- Trello Card -->
+                <div class="platform-card platform-card--trello" data-platform="trello">
+                  <div class="platform-card__icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                      <path
+                        d="M19.333 1.333H4.667C2.827 1.333 1.333 2.827 1.333 4.667v14.666c0 1.84 1.494 3.334 3.334 3.334h14.666c1.84 0 3.334-1.494 3.334-3.334V4.667c0-1.84-1.494-3.334-3.334-3.334zM10.667 17.333h-4V5.333h4v12zm8.666-4.666h-4V5.333h4v7.334z" />
+                    </svg>
+                  </div>
+                  <h3 class="platform-card__name">Trello</h3>
+                  <p class="platform-card__desc">Query boards, cards, lists, and project status</p>
+                  <button class="btn btn--trello btn--lg" style="background-color: #0079BF; color: white;">Connect
+                    Trello</button>
+                </div>
+
+                <!-- Salesforce Card -->
+                <div class="platform-card platform-card--salesforce" data-platform="salesforce">
+                  <div class="platform-card__icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                      <path
+                        d="M10.006 5a4.5 4.5 0 0 1 4.26 3.052A3.75 3.75 0 0 1 17.97 11.6a3.75 3.75 0 0 1-.469 7.4H5.25a4.35 4.35 0 0 1-.81-8.624A4.5 4.5 0 0 1 10.006 5z" />
+                    </svg>
+                  </div>
+                  <h3 class="platform-card__name">Salesforce</h3>
+                  <p class="platform-card__desc">Query leads, contacts, accounts, and opportunities</p>
+                  <button class="btn btn--salesforce btn--lg" style="background-color: #00A1E0; color: white;">Connect
+                    Salesforce</button>
+                </div>
               </div>
 
               <p class="mt-8 text-secondary" style="font-size: var(--font-size-sm);">
@@ -470,6 +498,47 @@
                 <p style="color: var(--color-warning); font-size: var(--font-size-xs);">⚠️ Store your token securely.
                   You won't be able to see it again!</p>
               </div>
+
+              <!-- Trello Instructions -->
+              <div id="trello-instructions" class="hidden"
+                style="font-size: var(--font-size-sm); color: var(--text-secondary); line-height: 1.6;">
+                <p style="margin-bottom: var(--space-3);"><strong>How to connect your Trello account:</strong></p>
+                <ol style="padding-left: var(--space-5); margin-bottom: var(--space-3);">
+                  <li>Go to <a href="https://trello.com/power-ups/admin" target="_blank" style="color: #0079BF;">Trello
+                      Power-Ups Admin</a>.</li>
+                  <li>Click <strong>"New"</strong> to create a Power-Up (e.g., named "DataBridge").</li>
+                  <li>Select your Workspace and fill in required fields.</li>
+                  <li>Once created, go to <strong>"API Key"</strong> tab.</li>
+                  <li>Copy your <strong>API Key</strong>.</li>
+                  <li>Click the manual <strong>"Token"</strong> generation link (usually below the API Key).</li>
+                  <li>Authorize and copy your <strong>Token</strong>.</li>
+                  <li>Enter them below in the format: <code
+                      style="background: var(--color-gray-200); padding: 2px 6px; border-radius: 4px;">API_KEY:TOKEN</code>
+                  </li>
+                </ol>
+              </div>
+
+              <!-- Salesforce Instructions -->
+              <div id="salesforce-instructions" class="hidden"
+                style="font-size: var(--font-size-sm); color: var(--text-secondary); line-height: 1.6;">
+                <p style="margin-bottom: var(--space-3);"><strong>How to connect your Salesforce account:</strong></p>
+                <ol style="padding-left: var(--space-5); margin-bottom: var(--space-3);">
+                  <li>Create a Connected App in Salesforce Setup → App Manager.</li>
+                  <li>Enable OAuth and add <code>Full access (full)</code> scope.</li>
+                  <li>Copy your Consumer Key and Consumer Secret below.</li>
+                  <li>Click "Connect" - a popup will open for Salesforce login.</li>
+                </ol>
+
+                <div class="form-group" style="margin-top: var(--space-3);">
+                  <label class="form-label" for="sf-client-id">Consumer Key (Client ID)</label>
+                  <input type="text" id="sf-client-id" class="form-input" placeholder="3MVG9dAE..." autocomplete="off">
+                </div>
+                <div class="form-group" style="margin-top: var(--space-2);">
+                  <label class="form-label" for="sf-client-secret">Consumer Secret</label>
+                  <input type="password" id="sf-client-secret" class="form-input" placeholder="A12B84FB..."
+                    autocomplete="off">
+                </div>
+              </div>
             </div>
 
             <form id="connect-form">
@@ -515,6 +584,8 @@
           </div>
         </div>
       </section>
+
+
 
       <!-- Dashboard Page -->
       <section id="page-dashboard" class="page">
@@ -601,6 +672,15 @@
                 </span>
                 GitHub
               </button>
+              <button class="session-tab" data-session="trello">
+                <span class="session-tab__icon">
+                  <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
+                    <path
+                      d="M19.333 1.333H4.667C2.827 1.333 1.333 2.827 1.333 4.667v14.666c0 1.84 1.494 3.334 3.334 3.334h14.666c1.84 0 3.334-1.494 3.334-3.334V4.667c0-1.84-1.494-3.334-3.334-3.334zM10.667 17.333h-4V5.333h4v12zm8.666-4.666h-4V5.333h4v7.334z" />
+                  </svg>
+                </span>
+                Trello
+              </button>
             </div>
 
             <div class="chat-container" id="chat-container">
@@ -649,6 +729,15 @@
                     </svg>
                     List all contacts
                   </button>
+                  <button class="example-query" data-query="Show me trello boards" data-platform="trello">
+                    <svg class="example-query__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                      stroke-width="2">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                      <line x1="12" y1="3" x2="12" y2="21" />
+                      <line x1="3" y1="9" x2="21" y2="9" />
+                    </svg>
+                    Show trello boards
+                  </button>
                 </div>
               </div>
 
@@ -686,6 +775,81 @@
   <script src="js/state.js"></script>
   <script src="js/api.js"></script>
   <script src="js/app.js"></script>
+
+  <!-- Salesforce Authorization Code Modal (Moved to end of body to prevent stacking context issues) -->
+  <div id="sf-code-modal" class="modal hidden">
+    <!-- No backdrop -->
+    <div class="modal__content" style="max-width: 460px; border: 1px solid var(--border-light);">
+      <!-- Header with gradient background -->
+      <div
+        style="background: linear-gradient(135deg, #00A1E0 0%, #1798C1 100%); padding: var(--space-5); border-radius: var(--radius-xl) var(--radius-xl) 0 0;">
+        <div style="display: flex; align-items: center; gap: var(--space-3);">
+          <div
+            style="width: 48px; height: 48px; background: rgba(255,255,255,0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(8px);">
+            <svg viewBox="0 0 24 24" fill="white" width="28" height="28">
+              <path
+                d="M10.006 5a4.5 4.5 0 0 1 4.26 3.052A3.75 3.75 0 0 1 17.97 11.6a3.75 3.75 0 0 1-.469 7.4H5.25a4.35 4.35 0 0 1-.81-8.624A4.5 4.5 0 0 1 10.006 5z" />
+            </svg>
+          </div>
+          <div>
+            <h3 style="margin: 0; font-size: 1.25rem; font-weight: 600; color: white;">Complete Authorization</h3>
+            <p style="margin: 4px 0 0 0; font-size: 0.875rem; color: rgba(255,255,255,0.85);">Salesforce OAuth</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div style="padding: var(--space-5);">
+        <p style="margin: 0 0 var(--space-4) 0; color: var(--text-secondary); font-size: 0.9375rem; line-height: 1.5;">
+          Copy the <strong style="color: var(--text-primary);">authorization code</strong> from the popup URL and paste
+          it below.
+        </p>
+
+        <!-- Hint box -->
+        <div
+          style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(99, 102, 241, 0.04) 100%); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 10px; padding: var(--space-4); margin-bottom: var(--space-5);">
+          <p
+            style="margin: 0 0 var(--space-2) 0; color: var(--text-secondary); font-size: 0.8125rem; font-weight: 500;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"
+              style="display: inline-block; vertical-align: -2px; margin-right: 4px;">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            Look for this in the URL:
+          </p>
+          <code
+            style="display: block; font-size: 0.8125rem; color: var(--text-primary); background: var(--bg-card); padding: 10px 12px; border-radius: 6px; font-family: 'SF Mono', Monaco, monospace;">
+            ...?code=<span style="background: linear-gradient(135deg, rgba(0, 161, 224, 0.25), rgba(0, 161, 224, 0.15)); color: #00A1E0; padding: 2px 6px; border-radius: 4px; font-weight: 500;">aPrxhi6Gmsfy...</span>
+          </code>
+        </div>
+
+        <!-- Input -->
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="form-label" for="sf-auth-code"
+            style="font-weight: 500; margin-bottom: var(--space-2);">Authorization Code</label>
+          <input type="text" id="sf-auth-code" class="form-input" placeholder="Paste the code here..."
+            autocomplete="off"
+            style="font-family: 'SF Mono', Monaco, monospace; font-size: 0.875rem; padding: 14px 16px; border-radius: 10px;">
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div
+        style="padding: var(--space-4) var(--space-5); border-top: 1px solid var(--border-light); display: flex; gap: var(--space-3); background: var(--bg-secondary); border-radius: 0 0 var(--radius-xl) var(--radius-xl);">
+        <button type="button" class="btn btn--secondary" id="sf-code-cancel" style="padding: 12px 20px;">Cancel</button>
+        <button type="button" class="btn btn--primary" id="sf-code-submit"
+          style="flex: 1; padding: 12px 20px; background: linear-gradient(135deg, #00A1E0 0%, #1798C1 100%); border: none;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"
+            style="margin-right: 6px;">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+          </svg>
+          Connect Salesforce
+        </button>
+      </div>
+    </div>
+  </div>
 </body>
 
 </html>

@@ -1,0 +1,51 @@
+# Stripe Get Revenue ToolSpec
+# Calculates total revenue from paid invoices
+
+tool_id: "stripe.get_revenue"
+version: "1.0.0"
+platform: "stripe"
+category: "DATA_QUERY"
+governance_class: "READ"
+
+description: |
+  Calculate total revenue from paid Stripe invoices.
+  Can filter by product name to get product-specific revenue.
+
+semantic_description: |
+  Use this tool when the user wants to know revenue, earnings,
+  income, or total sales. Can be filtered by product.
+
+example_queries:
+  - "What's the total revenue?"
+  - "Show me revenue for Product A"
+  - "How much did we make last month?"
+  - "What are our earnings?"
+  - "Calculate sales for Premium plan"
+
+endpoint:
+  method: "GET"
+  path: "/v1/invoices"
+
+parameters:
+  - name: "product_name"
+    type: "string"
+    required: false
+    description: "Filter revenue by product name"
+    entity_type: "stripe_product_name"
+  
+  - name: "date_from"
+    type: "date"
+    required: false
+    description: "Start date for revenue calculation"
+  
+  - name: "date_to"
+    type: "date"
+    required: false
+    description: "End date for revenue calculation"
+
+response:
+  data_path: "data"
+  entity_mapping:
+    total_revenue: "amount"
+    invoice_count: "count"
+    currency: "currency"

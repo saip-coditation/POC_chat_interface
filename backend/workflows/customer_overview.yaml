@@ -1,0 +1,79 @@
+# Example Workflow: Cross-Platform Customer Overview
+# Demonstrates aggregating data from multiple platforms
+
+workflow_id: customer_overview
+version: "1.0.0"
+name: Customer Overview
+description: |
+  Provides a unified view of a customer across Stripe (billing), 
+  Salesforce (CRM), and support platforms.
+
+# Input parameters
+inputs:
+  - name: customer_name
+    type: entity:customer
+    required: true
+    description: The customer to look up
+
+# Workflow steps
+steps:
+  # Step 1: Get Stripe customer data (parallel with step 2)
+  - id: stripe_data
+    type: tool
+    tool: stripe.get_customer
+    params:
+      customer_id: "{{ inputs.customer_name.external_id }}"
+
+  # Step 2: Get Salesforce account data (parallel with step 1)
+  - id: salesforce_data
+    type: tool
+    tool: salesforce.get_account
+    params:
+      account_name: "{{ inputs.customer_name.name }}"
+
+  # Step 2b: Get Salesforce contact data (for person search)
+  - id: salesforce_contact
+    type: tool
+    tool: salesforce.list_contacts
+    params:
+      name: "{{ inputs.customer_name.name }}"
+
+  # Step 3: Get recent invoices
+  - id: recent_invoices
+    type: tool
+    tool: stripe.list_invoices
+    params:
+      customer_id: "{{ inputs.customer_name.external_id }}"
+      limit: 5
+    depends_on:
+      - stripe_data
+
+  # Step 4: Merge all data into unified view
+  - id: unified_view
+    type: transform
+    operation: merge
+    depends_on:
+      - stripe_data
+      - salesforce_data
+      - salesforce_contact
+      - recent_invoices
+
+# Output configuration
+output:
+  format: unified_view
+  sections:
+    - name: billing
+      source: stripe_data
+    - name: crm_account
+      source: salesforce_data
+    - name: crm_contact
+      source: salesforce_contact
+    - name: recent_invoices
+      source: recent_invoices
+  summary_template: |
+    Customer: {{ inputs.customer_name.name }}
+
+# Governance
+governance:
+  class: READ
+  approval_required: false

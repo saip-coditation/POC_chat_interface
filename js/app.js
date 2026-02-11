@@ -309,6 +309,12 @@ const App = {
     Utils.hide('#stripe-instructions');
     Utils.hide('#zoho-instructions');
     Utils.hide('#github-instructions');
+    Utils.hide('#trello-instructions');
+    Utils.hide('#salesforce-instructions');
+
+    // Reset API key input state
+    Utils.$('#api-key').style.display = 'block';
+    Utils.$('#api-key').required = true;
 
     if (platform === 'stripe') {
       Utils.show('#stripe-instructions');
@@ -324,6 +330,20 @@ const App = {
       Utils.$('#api-key-label').textContent = 'GitHub Personal Access Token';
       Utils.$('#api-key').placeholder = 'ghp_xxxxxxxxxxxxxxxxxxxx';
       Utils.$('#api-key-help').textContent = 'Generate a token with "repo" scope at GitHub Settings.';
+      Utils.$('#api-key').placeholder = 'ghp_xxxxxxxxxxxxxxxxxxxx';
+      Utils.$('#api-key-help').textContent = 'Generate a token with "repo" scope at GitHub Settings.';
+    } else if (platform === 'trello') {
+      Utils.show('#trello-instructions');
+      Utils.$('#api-key-label').textContent = 'Trello Credentials';
+      Utils.$('#api-key').placeholder = 'Your_API_Key:Your_Token';
+      Utils.$('#api-key-help').textContent = 'Enter API Key and Token separated by a colon.';
+    } else if (platform === 'salesforce') {
+      Utils.show('#salesforce-instructions');
+      Utils.$('#api-key-label').textContent = 'Salesforce Credentials';
+      // Hide standard API key input for Salesforce (using OAuth popup instead)
+      Utils.$('#api-key').style.display = 'none';
+      Utils.$('#api-key').required = false;
+      Utils.$('#api-key-help').textContent = 'Enter your Consumer Key and Secret above, then click Connect.';
     }
 
     // Reset form state
@@ -411,8 +431,119 @@ const App = {
         }
 
         result = await API.exchangeZohoCode(apiKey, clientId, clientSecret);
+      } else if (platform === 'salesforce') {
+        // Salesforce requires OAuth popup flow
+        const clientId = Utils.$('#sf-client-id')?.value?.trim();
+        const clientSecret = Utils.$('#sf-client-secret')?.value?.trim();
+
+        if (!clientId || !clientSecret) {
+          throw new Error('Please enter Consumer Key (Client ID) and Consumer Secret');
+        }
+
+        // Generate PKCE
+        const { codeVerifier, codeChallenge } = await API.generatePKCE();
+
+        // Store code verifier for later use
+        State.sfCodeVerifier = codeVerifier;
+        State.sfClientId = clientId;
+        State.sfClientSecret = clientSecret;
+
+        // Open Salesforce authorization popup
+        const authUrl = API.getSalesforceAuthUrl(clientId, codeChallenge);
+        const popup = window.open(authUrl, 'salesforce_oauth', 'width=600,height=700');
+
+        if (!popup) {
+          throw new Error('Popup blocked. Please allow popups for this site.');
+        }
+
+        // Wait for user to authorize and return
+        App.showToast('Complete authorization in the popup window...', 'info');
+
+        // Check if popup closes
+        const checkClosed = setInterval(async () => {
+          if (popup.closed) {
+            clearInterval(checkClosed);
+
+            // Show custom modal for code input
+            const modal = Utils.$('#sf-code-modal');
+            const codeInput = Utils.$('#sf-auth-code');
+            const submitBtn2 = Utils.$('#sf-code-submit');
+            const cancelBtn = Utils.$('#sf-code-cancel');
+
+            Utils.show('#sf-code-modal');
+            codeInput.value = '';
+            codeInput.focus();
+
+            // Handle submit
+            const handleSubmit = async () => {
+              const code = codeInput.value.trim();
+              if (!code) {
+                App.showToast('Please enter the authorization code', 'error');
+                return;
+              }
+
+              submitBtn2.classList.add('btn--loading');
+              submitBtn2.disabled = true;
+
+              try {
+                // URL decode the code if needed
+                let decodedCode = code;
+                if (decodedCode.includes('%')) {
+                  decodedCode = decodeURIComponent(decodedCode);
+                }
+
+                const result = await API.exchangeSalesforceCode(
+                  decodedCode,
+                  State.sfCodeVerifier,
+                  State.sfClientId,
+                  State.sfClientSecret
+                );
+
+                Utils.hide('#sf-code-modal');
+
+                if (result.success) {
+                  await State.fetchPlatforms();
+                  Utils.show('#connect-success');
+                  App.showToast('Salesforce connected successfully!', 'success');
+                  setTimeout(() => App.navigate('query'), 1500);
+                } else {
+                  Utils.show('#connect-error');
+                  Utils.$('#connect-error-message').textContent = result.error || 'Connection failed';
+                }
+              } catch (err) {
+                Utils.hide('#sf-code-modal');
+                Utils.show('#connect-error');
+                Utils.$('#connect-error-message').textContent = err.message || 'Connection failed';
+              } finally {
+                submitBtn2.classList.remove('btn--loading');
+                submitBtn2.disabled = false;
+              }
+            };
+
+            // Handle cancel
+            const handleCancel = () => {
+              Utils.hide('#sf-code-modal');
+            };
+
+            // Event listeners (remove old ones first)
+            submitBtn2.onclick = handleSubmit;
+            cancelBtn.onclick = handleCancel;
+            Utils.$('#sf-code-modal .modal__backdrop').onclick = handleCancel;
+
+            // Enter key to submit
+            codeInput.onkeydown = (e) => {
+              if (e.key === 'Enter') handleSubmit();
+              if (e.key === 'Escape') handleCancel();
+            };
+
+            submitBtn.classList.remove('btn--loading');
+            submitBtn.disabled = false;
+          }
+        }, 1000);
+
+        return; // Exit early for Salesforce popup flow
       } else {
-        // Standard connection (Stripe, GitHub, or Zoho Refresh Token)
+        // Standard connection (Stripe, GitHub, Trello, or Zoho Refresh Token)
         result = await API.connectPlatform(platform, apiKey);
       }
 
@@ -515,19 +646,17 @@ const App = {
   async disconnectPlatform(platformId, platformName) {
     const config = API.platformConfig[platformName];
 
-    if (confirm(`Are you sure you want to disconnect ${config.name}?`)) {
-      try {
-        const result = await API.disconnectPlatform(platformId);
-        if (result.success) {
-          await State.fetchPlatforms();
-          App.renderDashboard();
-          App.showToast(`${config.name} disconnected`, 'info');
-        } else {
-          App.showToast(result.error || 'Failed to disconnect', 'error');
-        }
-      } catch (err) {
-        App.showToast('Failed to disconnect platform', 'error');
+    try {
+      const result = await API.disconnectPlatform(platformId);
+      if (result.success) {
+        await State.fetchPlatforms();
+        App.renderDashboard();
+        App.showToast(`${config.name} disconnected`, 'info');
+      } else {
+        App.showToast(result.error || 'Failed to disconnect', 'error');
       }
+    } catch (err) {
+      App.showToast('Failed to disconnect platform', 'error');
     }
   },
 
@@ -679,6 +808,8 @@ const App = {
    * Append a single message object to UI
    */
   appendMessageToUI(msg) {
+    console.log('[DEBUG appendMessageToUI] msg:', msg);
+    console.log('[DEBUG appendMessageToUI] msg.content:', msg.content);
     const container = Utils.$('#chat-messages');
     const messageEl = document.createElement('div');
     messageEl.className = `chat-message ${msg.type === 'user' ? 'chat-message--user' : 'chat-message--ai'} animate-fadeInUp`;
@@ -725,6 +856,7 @@ const App = {
 
     // Render Chart if available
     if (msg.rawData && msg.rawData.chart) {
+      console.log('[DEBUG] Rendering chart:', msg.rawData.chart);
       const chartId = `chart-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
       const chartContainer = document.createElement('div');
       chartContainer.className = 'chat-chart-container';
@@ -733,12 +865,61 @@ const App = {
       // Append to the message content
       const contentEl = messageEl.querySelector('.chat-message__content');
       if (contentEl) {
-        contentEl.appendChild(chartContainer);
-        // Render the chart
+        // Find the result-card__body and insert chart after the details element
+        const resultCardBody = contentEl.querySelector('.result-card__body');
+        if (resultCardBody) {
+          const detailsInBody = resultCardBody.querySelector('details.view-details');
+          if (detailsInBody && detailsInBody.parentNode === resultCardBody) {
+            // Insert chart after the details element (below the table)
+            try {
+              // Use insertBefore with nextSibling, or appendChild if no next sibling
+              if (detailsInBody.nextSibling) {
+                resultCardBody.insertBefore(chartContainer, detailsInBody.nextSibling);
+              } else {
+                resultCardBody.appendChild(chartContainer);
+              }
+            } catch (e) {
+              console.warn('[DEBUG] Failed to insertAfter, appending instead:', e);
+              resultCardBody.appendChild(chartContainer);
+            }
+          } else {
+            // No details element, append to end
+            resultCardBody.appendChild(chartContainer);
+          }
+        } else {
+          // Fallback: try to find details element in contentEl and insert after it
+          const detailsEl = contentEl.querySelector('details.view-details');
+          if (detailsEl && detailsEl.parentNode === contentEl) {
+            try {
+              if (detailsEl.nextSibling) {
+                contentEl.insertBefore(chartContainer, detailsEl.nextSibling);
+              } else {
+                contentEl.appendChild(chartContainer);
+              }
+            } catch (e) {
+              console.warn('[DEBUG] Failed to insertAfter in content, appending instead:', e);
+              contentEl.appendChild(chartContainer);
+            }
+          } else {
+            // Fallback: append to content element
+            contentEl.appendChild(chartContainer);
+          }
+        }
+
+        // Render the chart with a slight delay to ensure DOM is ready
         setTimeout(() => {
-          App.renderChart(chartId, msg.rawData.chart);
-        }, 100);
+          const canvas = document.getElementById(chartId);
+          if (canvas) {
+            App.renderChart(chartId, msg.rawData.chart);
+          } else {
+            console.error('[DEBUG] Canvas element not found for chart:', chartId);
+          }
+        }, 150);
+      } else {
+        console.error('[DEBUG] Content element not found for chart insertion');
       }
+    } else {
+      console.log('[DEBUG] No chart data found. rawData:', msg.rawData);
     }
   },
 
@@ -781,7 +962,10 @@ const App = {
     Utils.$('#query-submit').disabled = true;
 
     State.isProcessing = true;
+    // Show typing indicator, but capture the ID/Element to update it
     App.showTypingIndicator();
+    // Use ID selector according to showTypingIndicator implementation
+    const typingTextElement = Utils.$('#typing-indicator .processing-step__text');
 
     try {
       // Determine platform context if in specific session
@@ -790,24 +974,75 @@ const App = {
         platform = State.activeSession;
       }
 
-      const response = await API.processQuery(query, platform);
+      let finalResponse = null;
+
+      await API.processQueryStream(query, platform, (chunk) => {
+        if (chunk.type === 'log') {
+          // Find the processing loader container
+          const typingContainer = Utils.$('#typing-indicator .processing-loader');
+
+          if (typingContainer) {
+            // Mark previous step as completed
+            const lastStep = typingContainer.lastElementChild;
+            if (lastStep) {
+              lastStep.classList.remove('active');
+              lastStep.classList.add('completed');
+
+              // Replace spinner with checkmark
+              const iconContainer = lastStep.querySelector('.processing-step__icon');
+              if (iconContainer) {
+                iconContainer.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-green-500"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+              }
+            }
+
+            // Create new active step
+            const newStep = document.createElement('div');
+            newStep.className = 'processing-step active';
+            newStep.innerHTML = `
+                    <div class="processing-step__icon"><div class="spinner spinner--sm"></div></div>
+                    <span class="processing-step__text">${chunk.message}</span>
+                `;
+            typingContainer.appendChild(newStep);
+
+            // Auto-scroll to bottom of chat if needed (optional but good UX)
+            // Utils.scrollToBottom(); 
+          }
+        } else if (chunk.type === 'result') {
+          finalResponse = chunk.payload;
+        }
+      });
 
       App.removeTypingIndicator();
 
-      if (response.success) {
-        if (response.logs) {
-          App.renderLogs(response.logs);
+      if (finalResponse && finalResponse.success) {
+        // Debug: Log the full response to see chart data
+        console.log('[DEBUG handleQuery] Full response:', finalResponse);
+        console.log('[DEBUG handleQuery] Chart in response:', finalResponse.chart);
+
+        if (finalResponse.logs) {
+          App.renderLogs(finalResponse.logs);
         }
-        App.addChatMessage(response, 'ai');
+        App.addChatMessage(finalResponse, 'ai');
       } else {
+        const errorMsg = finalResponse ? (finalResponse.error || 'Failed to process query') : 'No response received';
         App.addChatMessage({
-          summary: response.error || 'Failed to process query',
+          summary: errorMsg,
           data: null
         }, 'ai');
       }
     } catch (error) {
       console.error('Query error:', error);
       App.removeTypingIndicator();
+      
+      // Handle authentication errors
+      if (error.message && (error.message.includes('session has expired') || error.message.includes('token'))) {
+        // Don't show error message in chat, user will be redirected to login
+        if (window.location.hash !== '#login') {
+          window.location.hash = '#login';
+        }
+        return;
+      }
+      
       App.addChatMessage({
         summary: error.message || 'An error occurred while processing your request.',
         data: null
@@ -821,6 +1056,7 @@ const App = {
    * Add chat message to state and UI
    */
   addChatMessage(content, type) {
+    console.log('[DEBUG addChatMessage] Called with type:', type, 'content:', content);
     // Construct message object
     let messageContent = '';
 
@@ -880,29 +1116,158 @@ const App = {
       let parsedSummary = response.summary || '';
       if (typeof marked !== 'undefined' && parsedSummary) {
         try {
-          parsedSummary = marked.parse(parsedSummary);
+          const renderer = new marked.Renderer();
+          const linkRenderer = renderer.link;
+          renderer.link = (href, title, text) => {
+            const html = linkRenderer.call(renderer, href, title, text);
+            return html.replace(/^<a /, '<a target="_blank" rel="noopener noreferrer" ');
+          };
+          parsedSummary = marked.parse(parsedSummary, { renderer: renderer });
         } catch (e) {
           console.error('Markdown parse error:', e);
         }
       }
 
       // Re-creating the result card HTML:
-      const resultCardHeader = `
-          <div class="result-card">
-          <div class="result-card__header">
-            <span class="result-card__platform">
-              <span style="width: 16px; height: 16px; display: inline-flex;">${config.icon || ''}</span>
-              ${config.name || platform}
-            </span>
-          </div>
-          <div class="result-card__body ai-response">
-            ${parsedSummary}
-      `;
+      messageContent = '';
+
+      if (response.type === 'bulk_response' && Array.isArray(response.data)) {
+        // Bulk Rendering
+        const overallSummary = parsedSummary || 'Executed multiple actions.';
+        messageContent += `<div style="margin-bottom:12px;">${overallSummary}</div>`;
+
+        response.data.forEach(subResult => {
+          // Use the platform from subResult, fallback to 'salesforce' for backward compatibility
+          const subPlatform = subResult.platform || 'salesforce';
+          const subConfig = API.platformConfig[subPlatform] || {};
+
+          // Sub-summary
+          let subSummaryRaw = subResult.summary || (subResult.success ? 'Action executed.' : 'Action failed.');
+          let subParsed = typeof marked !== 'undefined' ? marked.parse(subSummaryRaw) : subSummaryRaw;
+
+          let subTable = '';
+          if (subResult.data && Array.isArray(subResult.data) && subResult.data.length > 0) {
+            const h = Object.keys(subResult.data[0]).slice(0, 4);
+            const ths = h.map(c => `<th>${Utils.capitalize(c)}</th>`).join('');
+            const trs = subResult.data.map(item => {
+              const tds = h.map(k => {
+                let value = item[k];
+
+                // Skip formatting if value is an object (shouldn't happen, but safety check)
+                if (typeof value === 'object' && value !== null && !(value instanceof Date)) {
+                  value = JSON.stringify(value);
+                }
+
+                // Format currency values
+                if ((k === 'amount' || k === 'total_spend' || k === 'balance' || k === 'available' || k === 'pending' || k === 'total') && typeof value === 'number') {
+                  value = new Intl.NumberFormat('en-US', { style: 'currency', currency: item.currency || 'USD' }).format(value);
+                }
+                // Format dates - only if value is a valid date string/number
+                if ((k === 'date' || k === 'created') && value && typeof value !== 'object') {
+                  try {
+                    const date = new Date(value);
+                    if (!isNaN(date.getTime())) {  // Check if date is valid
+                      value = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+                    }
+                  } catch (e) {
+                    // Keep original value if parsing fails
+                  }
+                }
+                return `<td>${Utils.escapeHtml(String(value || '-'))}</td>`;
+              }).join('');
+              return `<tr>${tds}</tr>`;
+            }).join('');
+
+            subTable = `
+                   <details class="view-details">
+                     <summary class="view-details__header">
+                       <span class="view-details__icon">📋</span>
+                       View Details (${subResult.data.length})
+                       <span class="view-details__chevron">▼</span>
+                     </summary>
+                     <div class="view-details__content"><div class="table-container"><table class="result-table"><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table></div></div>
+                   </details>
+                 `;
+          } else if (subResult.error) {
+            subParsed = `<span style="color:var(--color-error)">❌ ${subResult.error}</span>`;
+          } else if (subResult.success && subResult.data && Array.isArray(subResult.data) && subResult.data.length === 0) {
+            // Success but no data (e.g., customer found but no invoices)
+            subParsed += `<div style="margin-top: 8px; color: var(--color-text-secondary); font-size: 0.9em;">No additional data available.</div>`;
+          }
+
+          messageContent += `
+               <div class="result-card" style="margin-bottom: 12px; border-left: 3px solid ${subConfig.color || '#ccc'};">
+                 <div class="result-card__header">
+                   <span class="result-card__platform">
+                     <span style="width: 16px; height: 16px; display: inline-flex;">${subConfig.icon || ''}</span>
+                     ${subConfig.name || subPlatform}
+                   </span>
+                 </div>
+                 <div class="result-card__body ai-response">
+                   ${subParsed}
+                   ${subTable}
+                 </div>
+               </div>
+             `;
+        });
+
+      } else {
+        // Check if this is a knowledge query answer
+        if (response.data && Array.isArray(response.data) && response.data.length > 0 && response.data[0].type === 'knowledge') {
+          const knowledgeData = response.data[0];
+          const answer = knowledgeData.answer || parsedSummary;
+          const topic = knowledgeData.topic || 'Information';
+          
+          // Format knowledge answer with markdown support
+          let formattedAnswer = answer;
+          if (typeof marked !== 'undefined') {
+            try {
+              formattedAnswer = marked.parse(answer);
+            } catch (e) {
+              console.error('Markdown parse error for knowledge answer:', e);
+            }
+          }
+          
+          messageContent = `
+             <div class="result-card">
+             <div class="result-card__header">
+               <span class="result-card__platform">
+                 <span style="width: 16px; height: 16px; display: inline-flex;">${config.icon || '📚'}</span>
+                 ${topic}
+               </span>
+             </div>
+             <div class="result-card__body ai-response">
+               ${formattedAnswer}
+             </div>
+           </div>
+         `;
+        } else {
+          // Standard Single Response (Existing Logic)
+          messageContent = `
+             <div class="result-card">
+             <div class="result-card__header">
+               <span class="result-card__platform">
+                 <span style="width: 16px; height: 16px; display: inline-flex;">${config.icon || ''}</span>
+                 ${config.name || platform}
+               </span>
+             </div>
+             <div class="result-card__body ai-response">
+               ${parsedSummary}
+         `;
+        }
+      }
 
       // Determine table content with collapsible View Details
       let tableContent = '';
-      if (response.data && response.data.data && Array.isArray(response.data.data) && response.data.data.length > 0) {
-        const items = response.data.data;
+      // Support both nested (response.data.data) and direct (response.data as array) formats
+      let items = null;
+      if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+        items = response.data;
+      } else if (response.data && response.data.data && Array.isArray(response.data.data) && response.data.data.length > 0) {
+        items = response.data.data;
+      }
+
+      if (items && items.length > 0) {
         const itemCount = items.length;
         const type = App.detectResultType(items, platform);
 
@@ -913,14 +1278,35 @@ const App = {
           if (item0.sha) cols = ['Commit', 'Message', 'Author', 'Date'];
           else if (item0.merged !== undefined) cols = ['PR #', 'Title', 'State', 'Author'];
           else if (item0.number) cols = ['Issue #', 'Title', 'State', 'Labels'];
-          else cols = ['Name', 'Description', 'Language'];
+          else cols = ['Name', 'Description', 'Stars', 'Updated'];
         } else if (platform === 'stripe') {
-          if (item0.amount) cols = ['Amount', 'Status', 'Customer', 'Date'];
-          else if (item0.email) cols = ['Name', 'Email', 'Balance'];
+          if (item0.available !== undefined || item0.pending !== undefined) {
+            // Balance data
+            cols = ['Available', 'Pending', 'Total', 'Currency'];
+          } else if (item0.amount) cols = ['Amount', 'Status', 'Customer', 'Date'];
+          else if (item0.email && (item0.balance !== undefined || item0.total_spend !== undefined)) {
+            // Show total_spend if available (more useful than account balance)
+            cols = item0.total_spend !== undefined ? ['Name', 'Email', 'Total Spend'] : ['Name', 'Email', 'Balance'];
+          } else if (item0.email) cols = ['Name', 'Email', 'Created'];
           else cols = ['ID', 'Name', 'Status'];
         } else if (platform === 'zendesk') {
           if (item0.subject) cols = ['ID', 'Subject', 'Status', 'Priority'];
           else cols = ['Name', 'Email', 'Role'];
+
+        } else if (platform === 'trello') {
+          if (type === 'cards') cols = ['Name', 'List', 'Due', 'URL'];
+          else if (type === 'boards') cols = ['Name', 'Description', 'URL'];
+          else if (type === 'lists') cols = ['Name', 'Board ID', 'List ID'];
+        } else if (platform === 'salesforce') {
+          if (type === 'leads') cols = ['Name', 'Email', 'Company', 'Status'];
+          else if (type === 'contacts') cols = ['Name', 'Email', 'Account', 'Title'];
+          else if (type === 'accounts') cols = ['Name', 'Industry', 'City', 'Phone'];
+          else if (type === 'opportunities') cols = ['Name', 'Amount', 'Stage', 'Close Date'];
+        } else if (platform === 'zoho') {
+          if (type === 'deals') cols = ['Name', 'Amount', 'Stage', 'Closing Date'];
+          else if (type === 'contacts') cols = ['Name', 'Email', 'Account', 'Created'];
+          else if (type === 'leads') cols = ['Name', 'Email', 'Company', 'Status'];
+          else if (type === 'accounts') cols = ['Name', 'Industry', 'Website', 'Created'];
         } else {
           cols = Object.keys(item0).slice(0, 4).map(k => Utils.capitalize(k));
         }
@@ -950,7 +1336,19 @@ const App = {
         `;
       }
 
-      messageContent = resultCardHeader + tableContent + `</div></div>`;
+      // Standard response: append table and close divs
+      // Skip table for knowledge queries (they're informational, not data tables)
+      if (response.type !== 'bulk_response') {
+        const isKnowledgeQuery = response.data && Array.isArray(response.data) && response.data.length > 0 && response.data[0].type === 'knowledge';
+        if (!isKnowledgeQuery) {
+          messageContent += tableContent + `</div></div>`;
+        } else {
+          // Knowledge query already has complete HTML, just close if needed
+          if (!messageContent.includes('</div></div>')) {
+            messageContent += `</div></div>`;
+          }
+        }
+      }
     }
 
     const message = {
@@ -959,6 +1357,14 @@ const App = {
       // Store raw data too for potential future re-rendering
       rawData: type === 'ai' ? content : null
     };
+
+    // Debug: Log chart data if present
+    if (type === 'ai') {
+      console.log('[DEBUG addChatMessage] Full content object:', content);
+      console.log('[DEBUG addChatMessage] Chart in content:', content?.chart);
+      console.log('[DEBUG addChatMessage] rawData will be:', content);
+      console.log('[DEBUG addChatMessage] rawData.chart will be:', content?.chart);
+    }
 
     // Store in state
     let platform = null;
@@ -978,6 +1384,7 @@ const App = {
 
       // Simpler: Just re-render messages to be safe and consistent order, 
       // OR just append. appending is smoother.
+      console.log('[DEBUG addChatMessage] About to append, message:', message);
       App.appendMessageToUI(message);
 
       const chatContainer = Utils.$('#chat-container');
@@ -998,12 +1405,25 @@ const App = {
       return 'repositories';
     }
     if (platform === 'stripe') {
+      if (item.available !== undefined || item.pending !== undefined) return 'balance';
       if (item.amount) return 'transactions'; // or invoices/charges
+      if (item.email && (item.balance !== undefined || item.total_spend !== undefined || item.name)) return 'customers';
       return 'customers';
     }
     if (platform === 'zendesk') {
       if (item.subject) return 'tickets';
       return 'users';
+    }
+    if (platform === 'trello') {
+      if (item.idList || (item.url && item.url.includes('/c/'))) return 'cards';
+      if (item.prefs || (item.url && item.url.includes('/b/'))) return 'boards';
+      if (item.idBoard && item.name) return 'lists';
+    }
+    if (platform === 'salesforce') {
+      if (item.Status && item.Company) return 'leads';
+      if (item.Account && item.Title) return 'contacts';
+      if (item.Industry || item.BillingCity) return 'accounts';
+      if (item.StageName || item.Amount) return 'opportunities';
     }
     return 'generic';
   },
@@ -1049,7 +1469,7 @@ const App = {
   /**
    * Render table row based on data type
    */
-  renderTableRow(item, type) {
+  renderTableRow(item, type, platform) {
     if (type === 'invoices') {
       const statusClass = item.status === 'paid' ? 'paid' : (item.status === 'overdue' ? 'overdue' : 'unpaid');
       return `
@@ -1082,13 +1502,37 @@ const App = {
       `;
     }
 
-    if (type === 'customers') {
+    if (type === 'balance') {
       return `
-        <td>${item.id}</td>
-        <td>${item.name || '-'}</td>
-        <td>${item.email || '-'}</td>
-        <td>${Utils.formatDate(item.created)}</td>
+        <td>${Utils.formatCurrency(item.available, item.currency || 'USD')}</td>
+        <td>${Utils.formatCurrency(item.pending, item.currency || 'USD')}</td>
+        <td>${Utils.formatCurrency(item.total, item.currency || 'USD')}</td>
+        <td>${item.currency || 'USD'}</td>
       `;
+    }
+
+    if (type === 'customers') {
+      // Prefer total_spend over balance (more useful metric)
+      if (item.total_spend !== undefined) {
+        return `
+          <td>${item.name || '-'}</td>
+          <td>${item.email || '-'}</td>
+          <td>${Utils.formatCurrency(item.total_spend, item.currency || 'USD')}</td>
+        `;
+      } else if (item.balance !== undefined) {
+        return `
+          <td>${item.name || '-'}</td>
+          <td>${item.email || '-'}</td>
+          <td>${Utils.formatCurrency(item.balance, item.currency || 'USD')}</td>
+        `;
+      } else {
+        return `
+          <td>${item.id}</td>
+          <td>${item.name || '-'}</td>
+          <td>${item.email || '-'}</td>
+          <td>${item.created ? Utils.formatDate(item.created) : '-'}</td>
+        `;
+      }
     }
 
     if (type === 'products') {
@@ -1115,9 +1559,8 @@ const App = {
     // GitHub types
     if (type === 'repositories') {
       return `
-        <td><strong>${Utils.escapeHtml(item.name || '-')}</strong></td>
+        <td><strong><a href="${item.html_url || item.url}" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: none;">${Utils.escapeHtml(item.name || '-')}</a></strong></td>
         <td>${Utils.escapeHtml((item.description || '-').substring(0, 50))}</td>
-        <td><span class="badge badge--info">${item.language || 'N/A'}</span></td>
         <td>⭐ ${item.stars || 0}</td>
         <td>${Utils.formatRelativeTime(item.updated_at)}</td>
       `;
@@ -1144,6 +1587,91 @@ const App = {
       `;
     }
 
+
+
+    if (type === 'cards') {
+      const url = item.url || item.shortUrl;
+      return `
+            <td>${Utils.escapeHtml(item.name || '-')}</td>
+            <td>${Utils.escapeHtml(item.list_name || '-')}</td>
+            <td>${item.due ? Utils.formatDate(item.due) : '-'}</td>
+            <td><a href="${url}" target="_blank" rel="noopener noreferrer" class="link-external">View Card ↗</a></td>
+        `;
+    }
+
+    if (type === 'boards') {
+      return `
+            <td><strong>${Utils.escapeHtml(item.name || '-')}</strong></td>
+            <td>${Utils.escapeHtml((item.desc || '-').substring(0, 50))}</td>
+            <td><a href="${item.url}" target="_blank" rel="noopener noreferrer" style="color: var(--color-primary); text-decoration: none;">View Board ↗</a></td>
+        `;
+    }
+
+    if (type === 'lists') {
+      return `
+            <td><strong>${Utils.escapeHtml(item.name || '-')}</strong></td>
+            <td>${Utils.escapeHtml(item.idBoard || '-')}</td>
+            <td><code>${item.id}</code></td>
+        `;
+    }
+
+    // Salesforce types
+    if (type === 'leads') {
+      return `
+        <td><strong>${Utils.escapeHtml(item.Name || '-')}</strong></td>
+        <td>${Utils.escapeHtml(item.Email || '-')}</td>
+        <td>${Utils.escapeHtml(item.Company || '-')}</td>
+        <td><span class="badge badge--info">${Utils.escapeHtml(item.Status || '-')}</span></td>
+      `;
+    }
+
+    if (type === 'contacts') {
+      const accountName = item.Account ? item.Account.Name : '-';
+      return `
+        <td><strong>${Utils.escapeHtml(item.Name || '-')}</strong></td>
+        <td>${Utils.escapeHtml(item.Email || '-')}</td>
+        <td>${Utils.escapeHtml(accountName)}</td>
+        <td>${Utils.escapeHtml(item.Title || '-')}</td>
+      `;
+    }
+
+    if (type === 'accounts') {
+      return `
+        <td><strong>${Utils.escapeHtml(item.Name || '-')}</strong></td>
+        <td>${Utils.escapeHtml(item.Industry || '-')}</td>
+        <td>${Utils.escapeHtml(item.BillingCity || '-')}</td>
+        <td>${Utils.escapeHtml(item.Phone || '-')}</td>
+      `;
+    }
+
+    if (type === 'opportunities') {
+      const accountName = item.Account ? item.Account.Name : '-';
+      return `
+        <td><strong>${Utils.escapeHtml(item.Name || '-')}</strong></td>
+        <td>$${(item.Amount || 0).toLocaleString()}</td>
+        <td><span class="badge badge--info">${Utils.escapeHtml(item.StageName || '-')}</span></td>
+        <td>${item.CloseDate || '-'}</td>
+      `;
+    }
+
+    if (type === 'deals') {
+      // Format amount - handle both numeric and string values
+      let amountValue = item.amount || item.Amount || 0;
+      if (typeof amountValue === 'string') {
+        // Remove currency symbols, commas, spaces
+        amountValue = amountValue.replace(/[$,\s]/g, '').trim();
+        amountValue = parseFloat(amountValue) || 0;
+      }
+      const formattedAmount = typeof amountValue === 'number' ? amountValue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : amountValue;
+
+      return `
+        <td><strong>${Utils.escapeHtml(item.name || item.Deal_Name || '-')}</strong></td>
+        <td>$${formattedAmount}</td>
+        <td><span class="badge badge--info">${Utils.escapeHtml(item.stage || item.Stage || '-')}</span></td>
+        <td>${item.closing_date || item.Closing_Date || '-'}</td>
+      `;
+    }
+
     if (type === 'issues') {
       const stateClass = item.state === 'open' ? 'open' : 'closed';
       return `
@@ -1155,7 +1683,13 @@ const App = {
       `;
     }
 
-    return Object.values(item).map(v => `<td>${v}</td>`).join('');
+    // Generic Fallback
+    const keys = Object.keys(item).slice(0, 4);
+    return keys.map(k => {
+      let val = item[k];
+      if (typeof val === 'object' && val !== null) val = JSON.stringify(val);
+      return `<td>${Utils.escapeHtml(String(val || '-'))}</td>`;
+    }).join('');
   },
 
   /**
@@ -1195,6 +1729,9 @@ const App = {
   /**
    * Render Chart.js Chart
    */
+  /**
+   * Render Chart.js Chart with Modern UI
+   */
   renderChart(canvasId, config) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
@@ -1205,35 +1742,124 @@ const App = {
     Chart.defaults.color = 'rgba(255, 255, 255, 0.7)';
     Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.05)';
 
-    // Modern Gradient for Bars/Lines
-    if (config.data && config.data.datasets && config.data.datasets[0]) {
-      const ds = config.data.datasets[0];
+    // Enhance Datasets with Gradients and Styling
+    if (config.data && config.data.datasets) {
+      config.data.datasets.forEach((ds, i) => {
+        // Generate a color based on index if not set
+        const colors = [
+          ['#6366f1', '#8b5cf6'], // Indigo -> Purple
+          ['#10b981', '#3b82f6'], // Emerald -> Blue
+          ['#f59e0b', '#ef4444'], // Amber -> Red
+        ];
+        const colorPair = colors[i % colors.length];
 
-      if (config.type === 'bar' || config.type === 'line') {
-        const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-        gradient.addColorStop(0, '#6366f1'); // Indigo-500
-        gradient.addColorStop(1, 'rgba(99, 102, 241, 0.1)');
+        if (config.type === 'bar' || config.type === 'line') {
+          // Create Gradient
+          const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+          gradient.addColorStop(0, colorPair[0]);
+          gradient.addColorStop(1, 'rgba(99, 102, 241, 0.05)'); // Fade to transparent
 
-        ds.backgroundColor = gradient;
-        ds.borderColor = '#6366f1';
-        ds.borderWidth = config.type === 'line' ? 2 : 0;
-        ds.borderRadius = 6;
-        ds.barPercentage = 0.6;
+          ds.backgroundColor = gradient;
+          ds.borderColor = colorPair[0];
+          ds.borderWidth = config.type === 'line' ? 3 : 0;
+          ds.borderRadius = 8; // Rounded top corners
+          ds.barPercentage = 0.6;
 
-        if (config.type === 'line') {
-          ds.tension = 0.4; // Smooth curve
-          ds.fill = true;
+          // Shadow for Lines
+          if (config.type === 'line') {
+            ds.tension = 0.4; // Smooth curve
+            ds.fill = true;
+            ds.pointBackgroundColor = '#1f2937';
+            ds.pointBorderColor = colorPair[0];
+            ds.pointBorderWidth = 2;
+            ds.pointRadius = 4;
+            ds.pointHoverRadius = 6;
+          }
+        } else if (config.type === 'doughnut' || config.type === 'pie') {
+          ds.borderWidth = 0;
+          ds.hoverOffset = 20;
+          ds.borderRadius = 5;
+          // Use palette for doughnut segments
+          ds.backgroundColor = [
+            '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6'
+          ];
         }
-      } else if (config.type === 'doughnut') {
-        ds.borderWidth = 0;
-        ds.hoverOffset = 15;
-        // Use custom palette if array
-        if (Array.isArray(ds.backgroundColor)) {
-          // Keep original colors but maybe adjust opacity? 
-          // Let's rely on backend colors for categorical data
-        }
-      }
+      });
     }
+
+    // Custom Glassmorphism Tooltip
+    const externalTooltipHandler = (context) => {
+      // Tooltip Element
+      let tooltipEl = document.getElementById('chartjs-tooltip');
+
+      // Create element on first render
+      if (!tooltipEl) {
+        tooltipEl = document.createElement('div');
+        tooltipEl.id = 'chartjs-tooltip';
+        tooltipEl.style.opacity = 1;
+        tooltipEl.style.position = 'absolute';
+        tooltipEl.style.pointerEvents = 'none';
+        tooltipEl.style.background = 'rgba(17, 24, 39, 0.8)'; // Dark semi-transparent
+        tooltipEl.style.backdropFilter = 'blur(12px)';
+        tooltipEl.style.webkitBackdropFilter = 'blur(12px)';
+        tooltipEl.style.borderRadius = '12px';
+        tooltipEl.style.border = '1px solid rgba(255, 255, 255, 0.1)';
+        tooltipEl.style.boxShadow = '0 10px 25px -5px rgba(0, 0, 0, 0.5)';
+        tooltipEl.style.color = '#fff';
+        tooltipEl.style.padding = '12px';
+        tooltipEl.style.transition = 'all 0.1s ease';
+        tooltipEl.style.zIndex = '100';
+        tooltipEl.style.fontFamily = "'Inter', sans-serif";
+        tooltipEl.style.transform = 'translate(-50%, 0)'; // Center horizontally
+        document.body.appendChild(tooltipEl);
+      }
+
+      const tooltipModel = context.tooltip;
+
+      // Hide if no tooltip
+      if (tooltipModel.opacity === 0) {
+        tooltipEl.style.opacity = 0;
+        return;
+      }
+
+      // Set content
+      if (tooltipModel.body) {
+        const titleLines = tooltipModel.title || [];
+        const bodyLines = tooltipModel.body.map(b => b.lines);
+
+        let innerHtml = '<div style="margin-bottom: 8px; font-weight: 600; font-size: 13px; color: #a5b4fc;">';
+        titleLines.forEach(title => {
+          innerHtml += `<span>${title}</span>`;
+        });
+        innerHtml += '</div>';
+
+        innerHtml += '<div style="display: flex; flex-direction: column; gap: 4px;">';
+        bodyLines.forEach((body, i) => {
+          const colors = tooltipModel.labelColors[i];
+          const span = `<span style="display:inline-block; width: 8px; height: 8px; border-radius: 50%; background:${colors.backgroundColor}; margin-right: 8px;"></span>`;
+          // Clean up value (remove "Subject: " prefix if present)
+          let text = body[0];
+          if (text.includes(':')) {
+            const parts = text.split(':');
+            if (parts.length > 1) {
+              text = `<span style="color: #94a3b8;">${parts[0]}:</span> <span style="font-weight: 500; color: #fff;">${parts.slice(1).join(':')}</span>`;
+            }
+          }
+          innerHtml += `<div style="font-size: 13px; display: flex; align-items: center;">${span}${text}</div>`;
+        });
+        innerHtml += '</div>';
+
+        tooltipEl.innerHTML = innerHtml;
+      }
+
+      const position = context.chart.canvas.getBoundingClientRect();
+      const bodyFont = Chart.defaults.font; // Just to get size estimate if needed
+
+      // Position
+      tooltipEl.style.opacity = 1;
+      tooltipEl.style.left = position.left + window.pageXOffset + tooltipModel.caretX + 'px';
+      tooltipEl.style.top = position.top + window.pageYOffset + tooltipModel.caretY - 10 + 'px'; // Slight offset up
+    };
 
     try {
       new Chart(ctx, {
@@ -1245,47 +1871,57 @@ const App = {
           maintainAspectRatio: false,
           plugins: {
             legend: {
-              display: config.type === 'doughnut', // Hide legend for single-series bar/line
+              display: config.type === 'doughnut' || config.type === 'pie',
               position: 'bottom',
               labels: {
                 usePointStyle: true,
                 padding: 20,
-                boxWidth: 8
+                boxWidth: 8,
+                color: '#9ca3af',
+                font: { size: 12 }
               }
             },
             tooltip: {
-              backgroundColor: 'rgba(17, 24, 39, 0.95)',
-              titleColor: '#fff',
-              bodyColor: '#e5e7eb',
-              borderColor: 'rgba(255,255,255,0.1)',
-              borderWidth: 1,
-              padding: 12,
-              cornerRadius: 8,
-              displayColors: true,
-              boxPadding: 4
+              enabled: false, // Disable default
+              external: externalTooltipHandler
             }
           },
-          scales: config.type === 'doughnut' ? {} : {
+          scales: (config.type === 'doughnut' || config.type === 'pie') ? {} : {
             y: {
               beginAtZero: true,
               grid: {
                 color: 'rgba(255, 255, 255, 0.05)',
-                drawBorder: false
+                drawBorder: false,
+                borderDash: [5, 5] // Dashed grid lines
               },
-              ticks: { padding: 10 }
+              ticks: {
+                padding: 10,
+                color: '#9ca3af',
+                font: { size: 11 }
+              },
+              border: { display: false } // Remove axis line
             },
             x: {
               grid: { display: false },
-              ticks: { padding: 10 }
+              ticks: {
+                padding: 10,
+                color: '#9ca3af',
+                font: { size: 11 }
+              },
+              border: { display: false }
             }
           },
           layout: {
-            padding: 10
+            padding: 20
           },
           interaction: {
             mode: 'index',
             intersect: false,
           },
+          animation: {
+            duration: 1000,
+            easing: 'easeOutQuart'
+          }
         }
       });
     } catch (e) {

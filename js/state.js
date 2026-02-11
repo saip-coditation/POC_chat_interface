@@ -15,12 +15,13 @@ const State = {
     // Platform being connected
     connectingPlatform: null,
 
-    // Chat sessions history
     sessions: {
         all: [],
         stripe: [],
         zendesk: [],
-        github: []
+        github: [],
+        trello: [],
+        salesforce: []
     },
 
     // Currently active session tab
@@ -154,7 +155,8 @@ const State = {
             all: [],
             stripe: [],
             zendesk: [],
-            github: []
+            github: [],
+            trello: []
         };
     },
 

@@ -1,0 +1,39 @@
+# Salesforce Write Tools
+# Class: WRITE
+# Governance: Requires confirmation/approval
+
+- tool_id: salesforce.create_record
+  platform: salesforce
+  description: Create a new record (Lead, Contact, Account, Opportunity) in Salesforce.
+  category: DATA_WRITE
+  governance_class: WRITE
+  params:
+    object:
+      type: string
+      description: The type of object to create (Contact, Lead, Account, Opportunity).
+      required: true
+    data:
+      type: object
+      description: JSON object containing the field values for the record.
+      required: true
+  semantic_description: Create a new record in Salesforce CRM.
+
+- tool_id: salesforce.update_record
+  platform: salesforce
+  description: Update an existing record in Salesforce.
+  category: DATA_WRITE
+  governance_class: WRITE
+  params:
+    object:
+      type: string
+      description: The type of object to update (Contact, Lead, Account, Opportunity).
+      required: true
+    id:
+      type: string
+      description: The ID of the record to update.
+      required: true
+    data:
+      type: object
+      description: JSON object containing the fields to update.
+      required: true
+  semantic_description: Update an existing record in Salesforce CRM.

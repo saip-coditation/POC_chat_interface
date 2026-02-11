@@ -95,8 +95,16 @@ def get_access_token(refresh_token: str, client_credentials=None) -> str:
         }, timeout=10)
         
         if response.status_code != 200:
-            logger.error(f"Zoho token refresh failed: {response.text}")
-            raise ValueError(f"Failed to refresh Zoho token: {response.text}")
+            logger.error(f"[ZOHO] Token refresh failed: {response.text}")
+            error_msg = f"[ZOHO] Failed to refresh token: {response.text}"
+            
+            if "not valid for any token type" in response.text:
+                error_msg += " (Hint: The refresh token may be revoked, expired, or generated for a different Data Center. Current domain: " + config['token_url'] + ")"
+            
+            if "invalid_client" in response.text:
+                 error_msg += " (Hint: Check ZOHO_CLIENT_ID and ZOHO_CLIENT_SECRET)"
+                 
+            raise ValueError(error_msg)
         
         data = response.json()
         if 'error' in data:
@@ -146,8 +154,14 @@ def fetch_contacts(refresh_token: str, filters: dict = None, client_credentials=
         access_token = get_access_token(refresh_token, client_credentials)
         config = _get_zoho_config(client_credentials)
         
-        limit = min(filters.get('limit', 50), 200)
-        url = f"{config['api_base']}/Contacts?per_page={limit}"
+        name_filter = filters.get('name')
+        
+        if name_filter:
+            # Use Search API for specific name lookup (bypass pagination limits)
+            url = f"{config['api_base']}/Contacts/search?criteria=((First_Name:starts_with:{name_filter})OR(Last_Name:starts_with:{name_filter}))"
+        else:
+            limit = min(filters.get('limit', 50), 200)
+            url = f"{config['api_base']}/Contacts?per_page={limit}"
         
         response = requests.get(
             url,
@@ -161,6 +175,7 @@ def fetch_contacts(refresh_token: str, filters: dict = None, client_credentials=
         data = response.json()
         contacts = data.get('data', [])
 
+        # Get location filter if specified
         # Get location filter if specified
         location_filter = filters.get('city') or filters.get('location') or filters.get('state')
         
@@ -184,6 +199,10 @@ def fetch_contacts(refresh_token: str, filters: dict = None, client_credentials=
                 'created': contact.get('Created_Time')
             }
             
+            # Apply name filter if specified
+            if name_filter and name_filter.lower() not in name.lower():
+                continue
+
             # Apply location filter if specified
             if location_filter:
                 loc_lower = location_filter.lower()
@@ -224,18 +243,71 @@ def fetch_deals(refresh_token: str, filters: dict = None, client_credentials=Non
         data = response.json()
         deals = data.get('data', [])
         
+        # Apply filters
+        amount_gt = filters.get('amount_gt')  # Filter deals above this amount
+        stage_filter = filters.get('stage')  # Filter by stage
+        
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"[ZOHO DEALS] Received filters dict: {filters}")
+        logger.info(f"[ZOHO DEALS] Total deals fetched from API: {len(deals)}, filters: amount_gt={amount_gt} (type: {type(amount_gt)}), stage={stage_filter}")
+        
         result = []
         for deal in deals:
+            deal_amount = deal.get('Amount')
+            deal_stage = deal.get('Stage')
+            
+            # Filter by amount if specified
+            if amount_gt is not None:
+                try:
+                    # Parse amount_gt - handle strings like "60000", "60,000", "$60000"
+                    amount_threshold = amount_gt
+                    if isinstance(amount_threshold, str):
+                        # Remove currency symbols, commas, and spaces
+                        amount_threshold = amount_threshold.replace('$', '').replace(',', '').replace(' ', '').strip()
+                    amount_threshold = float(amount_threshold)
+                    
+                    # Parse deal amount - handle various formats from Zoho
+                    amount_value = 0
+                    if deal_amount:
+                        if isinstance(deal_amount, (int, float)):
+                            amount_value = float(deal_amount)
+                        elif isinstance(deal_amount, str):
+                            # Remove currency symbols, commas, spaces
+                            amount_str = deal_amount.replace('$', '').replace(',', '').replace(' ', '').strip()
+                            amount_value = float(amount_str) if amount_str else 0
+                        else:
+                            amount_value = float(deal_amount)
+                    
+                    # Filter: only include deals >= threshold
+                    logger.info(f"[ZOHO DEALS] Comparing deal '{deal.get('Deal_Name')}': amount_value={amount_value} (from '{deal_amount}') vs threshold={amount_threshold}")
+                    if amount_value < amount_threshold:
+                        logger.info(f"[ZOHO DEALS] ❌ FILTERED OUT deal '{deal.get('Deal_Name')}' - amount {amount_value} < {amount_threshold}")
+                        continue
+                    else:
+                        logger.info(f"[ZOHO DEALS] ✅ INCLUDING deal '{deal.get('Deal_Name')}' - amount {amount_value} >= {amount_threshold}")
+                except (ValueError, TypeError) as e:
+                    # If amount can't be parsed, skip this deal
+                    logger.warning(f"[ZOHO DEALS] Could not parse deal amount '{deal_amount}' for deal '{deal.get('Deal_Name')}': {e}")
+                    continue
+            
+            # Filter by stage if specified
+            if stage_filter and deal_stage:
+                # Case-insensitive partial match
+                if stage_filter.lower() not in deal_stage.lower():
+                    continue
+            
             result.append({
                 'id': deal.get('id'),
                 'name': deal.get('Deal_Name'),
-                'amount': deal.get('Amount'),
-                'stage': deal.get('Stage'),
+                'amount': deal_amount,
+                'stage': deal_stage,
                 'closing_date': deal.get('Closing_Date'),
                 'account': deal.get('Account_Name', {}).get('name') if deal.get('Account_Name') else None,
                 'created': deal.get('Created_Time')
             })
         
+        logger.info(f"[ZOHO DEALS] Returning {len(result)} deals after filtering")
         return {'data': result, 'count': len(result)}
     except Exception as e:
         return {'data': [], 'count': 0, 'error': str(e)}
@@ -306,8 +378,14 @@ def fetch_accounts(refresh_token: str, filters: dict = None, client_credentials=
         access_token = get_access_token(refresh_token, client_credentials)
         config = _get_zoho_config(client_credentials)
         
-        limit = min(filters.get('limit', 50), 200)
-        url = f"{config['api_base']}/Accounts?per_page={limit}"
+        name_filter = filters.get('name')
+        
+        if name_filter:
+            # Use Search API for specific name lookup
+            url = f"{config['api_base']}/Accounts/search?criteria=(Account_Name:starts_with:{name_filter})"
+        else:
+            limit = min(filters.get('limit', 50), 200)
+            url = f"{config['api_base']}/Accounts?per_page={limit}"
         
         response = requests.get(
             url,
@@ -321,11 +399,26 @@ def fetch_accounts(refresh_token: str, filters: dict = None, client_credentials=
         data = response.json()
         accounts = data.get('data', [])
         
+        # Apply filters
+        city_filter = filters.get('city')
+        name_filter = filters.get('name')
+        
         result = []
         for account in accounts:
+            acc_name = account.get('Account_Name', '')
+            acc_city = account.get('Billing_City', '')
+            
+            # Filter by name if specified
+            if name_filter and name_filter.lower() not in acc_name.lower():
+                continue
+                
+            # Filter by city if specified
+            if city_filter and city_filter.lower() not in acc_city.lower():
+                continue
+
             result.append({
                 'id': account.get('id'),
-                'name': account.get('Account_Name'),
+                'name': acc_name,
                 'website': account.get('Website'),
                 'industry': account.get('Industry'),
                 'phone': account.get('Phone'),
@@ -335,3 +428,107 @@ def fetch_accounts(refresh_token: str, filters: dict = None, client_credentials=
         return {'data': result, 'count': len(result)}
     except Exception as e:
         return {'data': [], 'count': 0, 'error': str(e)}
+
+
+def create_record(refresh_token: str, module: str, data: dict, client_credentials=None) -> dict:
+    """
+    Create a new record in Zoho CRM.
+    """
+    try:
+        access_token = get_access_token(refresh_token, client_credentials)
+        config = _get_zoho_config(client_credentials)
+        
+        # Normalize module name
+        module_map = {
+            'contact': 'Contacts',
+            'lead': 'Leads',
+            'deal': 'Deals',
+            'account': 'Accounts',
+            'contacts': 'Contacts',
+            'leads': 'Leads',
+            'deals': 'Deals',
+            'accounts': 'Accounts'
+        }
+        target_module = module_map.get(module.lower(), module)
+        
+        url = f"{config['api_base']}/{target_module}"
+        
+        # Zoho expects data wrapped in 'data' list
+        payload = {'data': [data]}
+        
+        response = requests.post(
+            url,
+            headers={"Authorization": f"Zoho-oauthtoken {access_token}"},
+            json=payload,
+            timeout=15
+        )
+        
+        result = response.json()
+        
+        if response.status_code in [200, 201] and result.get('data') and result['data'][0].get('status') == 'success':
+            return {
+                'success': True,
+                'data': result.get('data'),
+                'summary': f"Successfully created {module} (ID: {result['data'][0].get('details', {}).get('id')})."
+            }
+        else:
+            return {
+                'success': False,
+                'error': f"Failed to create {module}: {result}",
+                'status_code': response.status_code
+            }
+            
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def update_record(refresh_token: str, module: str, record_id: str, data: dict, client_credentials=None) -> dict:
+    """
+    Update an existing record in Zoho CRM.
+    """
+    try:
+        access_token = get_access_token(refresh_token, client_credentials)
+        config = _get_zoho_config(client_credentials)
+        
+        # Normalize module name
+        module_map = {
+            'contact': 'Contacts',
+            'lead': 'Leads',
+            'deal': 'Deals',
+            'account': 'Accounts',
+            'contacts': 'Contacts',
+            'leads': 'Leads',
+            'deals': 'Deals',
+            'accounts': 'Accounts'
+        }
+        target_module = module_map.get(module.lower(), module)
+        
+        url = f"{config['api_base']}/{target_module}/{record_id}"
+        
+        # Zoho expects data wrapped in 'data' list
+        payload = {'data': [data]}
+        
+        response = requests.put(
+            url,
+            headers={"Authorization": f"Zoho-oauthtoken {access_token}"},
+            json=payload,
+            timeout=15
+        )
+        
+        result = response.json()
+        
+        if response.status_code in [200, 201] and result.get('data') and result['data'][0].get('status') == 'success':
+            return {
+                'success': True,
+                'data': result.get('data'),
+                'summary': f"Successfully updated {module} (ID: {record_id})."
+            }
+        else:
+            return {
+                'success': False,
+                'error': f"Failed to update {module}: {result}",
+                'status_code': response.status_code
+            }
+            
+    except Exception as e:
+        return {'success': False, 'error': str(e)}

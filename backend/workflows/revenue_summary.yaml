@@ -1,0 +1,85 @@
+# Example Workflow: Get Revenue Summary
+# This workflow demonstrates a multi-step data aggregation across platforms
+
+workflow_id: revenue_summary
+version: "1.0.0"
+name: Revenue Summary Report
+description: |
+  Aggregates revenue data from Stripe, with optional filtering by product.
+  Returns a summary with total revenue, invoice count, and breakdown by product.
+
+# Input parameters
+inputs:
+  - name: date_range
+    type: date_range
+    required: false
+    default: last_30_days
+    description: Time period for the report
+  
+  - name: product_filter
+    type: entity:product
+    required: false
+    description: Optional product to filter by
+
+# Workflow steps
+steps:
+  # Step 1: Fetch invoices from Stripe
+  - id: fetch_invoices
+    type: tool
+    tool: stripe.list_invoices
+    params:
+      status: paid
+      limit: 100
+      created_after: "{{ inputs.date_range.start }}"
+      created_before: "{{ inputs.date_range.end }}"
+
+  # Step 2: Filter by product if specified
+  - id: filter_by_product
+    type: transform
+    operation: filter
+    depends_on:
+      - fetch_invoices
+    condition: "product contains '{{ inputs.product_filter.name }}'"
+
+  # Step 3: Aggregate revenue by product
+  - id: aggregate_by_product
+    type: aggregate
+    depends_on:
+      - filter_by_product
+    group_by: product_name
+    metrics:
+      - name: total_revenue
+        operation: sum
+        field: amount
+      - name: invoice_count
+        operation: count
+        field: id
+
+  # Step 4: Calculate totals
+  - id: calculate_totals
+    type: aggregate
+    depends_on:
+      - filter_by_product
+    metrics:
+      - name: grand_total
+        operation: sum
+        field: amount
+      - name: total_invoices
+        operation: count
+        field: id
+
+# Output configuration
+output:
+  format: unified_view
+  sections:
+    - name: summary
+      source: calculate_totals
+    - name: by_product
+      source: aggregate_by_product
+  summary_template: |
+    Revenue Report: ${{ steps.calculate_totals.grand_total }} from {{ steps.calculate_totals.total_invoices }} invoices
+
+# Governance
+governance:
+  class: READ
+  approval_required: false

@@ -8,3 +8,9 @@ stripe>=7.0.0
 zenpy>=2.0.0
 cryptography>=41.0.0
 gunicorn>=21.0.0
+
+# Phase 1: AI Data Orchestration Platform
+chromadb>=0.4.0
+google-generativeai>=0.3.0
+pyyaml>=6.0.0
+psycopg2-binary>=2.9.0

@@ -1,0 +1,18 @@
+tool_id: salesforce.get_account
+name: Get Salesforce Account
+description: Retrieve details about a company or account from Salesforce.
+platform: salesforce
+category: CRM
+governance_class: READ
+inputs:
+  name:
+    type: string
+    description: The name of the company or account.
+example_queries:
+  - "Get details for Acme Corp"
+  - "Show me Globex info"
+  - "Revenue for Soylent Corp"
+  - "Account details for Initech"
+  - "Look up company Massive Dynamic"
+  - "Who is our customer Stark Industries?"
+  - "details for company yyy"

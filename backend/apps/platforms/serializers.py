@@ -30,7 +30,7 @@ class PlatformConnectionSerializer(serializers.ModelSerializer):
 class ConnectPlatformSerializer(serializers.Serializer):
     """Serializer for connecting a new platform."""
     
-    platform = serializers.ChoiceField(choices=['stripe', 'zendesk', 'zoho', 'github'])
+    platform = serializers.ChoiceField(choices=['stripe', 'zendesk', 'zoho', 'github', 'trello', 'salesforce'])
     api_key = serializers.CharField(min_length=10)
     
     def validate_platform(self, value):

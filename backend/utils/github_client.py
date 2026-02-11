@@ -8,6 +8,7 @@ Uses Personal Access Token (PAT) for authentication.
 import logging
 import requests
 from datetime import datetime
+from urllib.parse import quote_plus
 
 logger = logging.getLogger(__name__)
 
@@ -416,3 +417,124 @@ def fetch_issues(token: str, owner: str, repo: str, filters: dict = None) -> dic
     except Exception as e:
         logger.error(f"GitHub fetch issues error: {e}")
         return {'data': [], 'count': 0, 'error': str(e)}
+
+
+def search_issues(token: str, query: str, filters: dict = None) -> dict:
+    """
+    Search for issues and pull requests globally or within user repos.
+    
+    Args:
+        token: GitHub PAT
+        query: Search keywords (e.g. "Login Page")
+        filters: Optional filters (state: open/closed)
+        
+    Returns:
+        dict with 'data' list and 'count'
+    """
+    filters = filters or {}
+    
+    try:
+        # Construct search query
+        # Add 'is:pr' if looking for PRs, or default to both
+        search_query = query
+        
+        # Add user filter to search only within user's scope if needed, 
+        # or let the user specify via query "user:username"
+        # For safety, let's append 'user:@me' or equivalent if not present?
+        # Actually, GitHub search is global often. Let's try to restrict to authenticated user's involves
+        # But 'involves:username' or 'user:username' is good.
+        # For now, let's assume the caller constructs a good query or we just search.
+        
+        # URL encode the query to handle special characters
+        encoded_query = quote_plus(search_query)
+        
+        params = {
+            'q': search_query,  # requests will handle encoding, but we log the encoded version
+            'per_page': min(filters.get('limit', 30), 100),  # Increased default limit
+            'sort': 'updated',
+            'order': 'desc'
+        }
+        
+        logger.info(f"[GITHUB] Search query: {search_query} (encoded: {encoded_query})")
+        
+        response = requests.get(
+            f"{GITHUB_API_BASE}/search/issues",
+            headers=_get_headers(token),
+            params=params,
+            timeout=15
+        )
+        
+        if response.status_code != 200:
+            error_msg = f'API error: {response.status_code}'
+            try:
+                error_data = response.json()
+                if 'message' in error_data:
+                    error_msg += f" - {error_data['message']}"
+                if 'errors' in error_data:
+                    error_details = ', '.join([str(e) for e in error_data['errors']])
+                    error_msg += f" - Errors: {error_details}"
+            except Exception as e:
+                logger.warning(f"Could not parse error response: {e}")
+            logger.error(f"GitHub search API error: {error_msg} (query: {search_query})")
+            return {'data': [], 'count': 0, 'error': error_msg}
+        
+        results = response.json()
+        items = results.get('items', [])
+        data = []
+        
+        # Filter to only PRs if query contains 'is:pr'
+        if 'is:pr' in query.lower():
+            items = [item for item in items if 'pull_request' in item]
+        
+        for item in items:
+            # Extract repo name from repository_url if available
+            repo_url = item.get('repository_url', '')
+            repo_name = ''
+            if repo_url:
+                # Format: https://api.github.com/repos/owner/repo
+                parts = repo_url.replace('https://api.github.com/repos/', '').split('/')
+                if len(parts) >= 2:
+                    repo_name = f"{parts[0]}/{parts[1]}"
+            
+            # Check if this is a PR
+            is_pr = 'pull_request' in item
+            
+            # Skip non-PR items if we're searching specifically for PRs
+            if 'is:pr' in query.lower() and not is_pr:
+                continue
+            
+            pr_data = {
+                'number': item['number'],
+                'title': item['title'][:100],
+                'state': item['state'],
+                'author': item['user']['login'],
+                'repository': repo_name,
+                'repository_url': repo_url,
+                'created_at': item['created_at'],
+                'updated_at': item['updated_at'],
+                'url': item['html_url']
+            }
+            
+            # Add merged status if this is a PR
+            # Note: GitHub search API doesn't include merged_at, so we'll set merged=False
+            # and let the frontend handle it. For accurate merged status, use fetch_pull_requests instead.
+            if is_pr:
+                pr_data['merged'] = False  # Default to False, can't determine from search results
+                pr_data['merged_at'] = None
+                pr_data['comments'] = item.get('comments', 0)
+            else:
+                # For issues, add labels
+                pr_data['labels'] = [l['name'] for l in item.get('labels', [])]
+            
+            data.append(pr_data)
+            
+        return {
+            'data': data,
+            'count': len(data),  # Use actual count of filtered items, not total_count
+            'query': query
+        }
+        
+    except Exception as e:
+        logger.error(f"GitHub search error: {e}")
+        return {'data': [], 'count': 0, 'error': str(e)}
+

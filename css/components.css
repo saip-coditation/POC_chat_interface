@@ -496,6 +496,90 @@
     gap: var(--space-3);
 }
 
+/* Standalone Modal (with .modal.hidden pattern) */
+.modal {
+    position: fixed;
+    top: 50%;
+    left: 2rem;
+    transform: translateY(-50%);
+    /* Reset other positions */
+    bottom: auto;
+    right: auto;
+    z-index: 9999;
+    background: transparent;
+    padding: 0;
+    margin: 0;
+    pointer-events: none;
+    /* Container is invisible to clicks */
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    width: auto;
+    height: auto;
+}
+
+.modal.hidden {
+    display: none !important;
+}
+
+.modal .modal__backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: transparent;
+    /* Totally transparent */
+    backdrop-filter: none;
+    /* No blur */
+    z-index: -1;
+    pointer-events: auto;
+    /* Still block clicks behind it */
+}
+
+.modal .modal__content {
+    position: relative;
+    background: var(--bg-card);
+    border-radius: var(--radius-xl);
+    box-shadow: none;
+    /* Removed shadow/glow effect */
+    border: 1px solid var(--border-light);
+    /* Ensure border is visible */
+    max-width: 480px;
+    width: 100%;
+    max-height: calc(100vh - 40px);
+    overflow: auto;
+    animation: modalSlideIn 0.25s ease-out;
+    pointer-events: auto;
+    /* Re-enable clicks on the card itself */
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-30px) scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.modal .modal__header {
+    padding: var(--space-5);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.modal .modal__body {
+    padding: var(--space-5);
+}
+
+.modal .modal__footer {
+    padding: var(--space-4) var(--space-5);
+    border-top: 1px solid var(--border-light);
+}
+
 /* --------------------------------------------------------------------------
    Toast / Notification
    -------------------------------------------------------------------------- */
@@ -944,10 +1028,106 @@
 
 .ai-response {
     line-height: 1.6;
+    color: var(--text-primary);
 }
 
 .ai-response p {
     margin-bottom: var(--space-3);
+    color: var(--text-primary);
+}
+
+.ai-response h1,
+.ai-response h2,
+.ai-response h3,
+.ai-response h4 {
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+    margin-top: var(--space-4);
+    margin-bottom: var(--space-3);
+}
+
+.ai-response h2 {
+    font-size: var(--font-size-lg);
+    border-bottom: 1px solid var(--border-light);
+    padding-bottom: var(--space-2);
+}
+
+.ai-response h3 {
+    font-size: var(--font-size-base);
+    margin-top: var(--space-3);
+}
+
+.ai-response ul,
+.ai-response ol {
+    margin: var(--space-3) 0;
+    padding-left: var(--space-6);
+    color: var(--text-primary);
+}
+
+.ai-response li {
+    margin-bottom: var(--space-2);
+    line-height: 1.6;
+    color: var(--text-primary);
+}
+
+.ai-response li::marker {
+    color: var(--color-primary);
+}
+
+.ai-response strong {
+    color: var(--text-primary);
+    font-weight: var(--font-weight-semibold);
+}
+
+.ai-response em {
+    font-style: italic;
+    color: var(--text-secondary);
+}
+
+.ai-response hr {
+    border: none;
+    border-top: 1px solid var(--border-light);
+    margin: var(--space-4) 0;
+}
+
+.ai-response h1,
+.ai-response h2,
+.ai-response h3 {
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+    margin-top: var(--space-4);
+    margin-bottom: var(--space-2);
+}
+
+.ai-response h2 {
+    font-size: var(--font-size-lg);
+    border-bottom: 1px solid var(--border-light);
+    padding-bottom: var(--space-2);
+}
+
+.ai-response h3 {
+    font-size: var(--font-size-base);
+}
+
+.ai-response ul,
+.ai-response ol {
+    margin: var(--space-3) 0;
+    padding-left: var(--space-6);
+}
+
+.ai-response li {
+    margin-bottom: var(--space-2);
+    line-height: 1.6;
+}
+
+.ai-response strong {
+    color: var(--text-primary);
+    font-weight: var(--font-weight-semibold);
+}
+
+.ai-response em {
+    font-style: italic;
+    color: var(--text-secondary);
 }
 
 .ai-response table {
@@ -999,6 +1179,40 @@
     border-radius: var(--radius-sm);
     font-family: var(--font-mono);
     font-size: 0.9em;
+    color: var(--text-primary);
+    border: 1px solid var(--border-light);
+}
+
+.ai-response pre {
+    background: var(--bg-tertiary);
+    padding: var(--space-4);
+    border-radius: var(--radius-md);
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    overflow-x: auto;
+    border: 1px solid var(--border-light);
+    color: var(--text-primary);
+    line-height: 1.5;
+    margin: var(--space-3) 0;
+}
+
+.ai-response pre code {
+    background: transparent;
+    padding: 0;
+    border: none;
+    font-size: inherit;
+    color: inherit;
+}
+
+[data-theme="dark"] .ai-response code,
+[data-theme="dark"] .ai-response pre {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .ai-response pre code {
+    background: transparent;
 }
 
 /* Dark mode table adjustments */
@@ -1161,4 +1375,34 @@
 
 [data-theme="dark"] .view-details .result-table th {
     background: rgba(255, 255, 255, 0.05);
+}
+
+/* --------------------------------------------------------------------------
+   Chart Container
+   -------------------------------------------------------------------------- */
+
+.chat-chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+    margin-top: var(--space-4);
+    background: rgba(255, 255, 255, 0.5);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    transition: all var(--transition-base);
+}
+
+/* Glassmorphism for chart container */
+[data-theme="dark"] .chat-chart-container {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.chat-chart-container:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
 }
