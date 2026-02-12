@@ -125,6 +125,11 @@ const API = {
                 }
             }
 
+            // 204 No Content = success with no body (e.g. DELETE)
+            if (response.status === 204) {
+                return null;
+            }
+
             // Check if response is JSON before parsing
             let data;
             const contentType = response.headers.get('content-type');
@@ -475,6 +480,30 @@ const API = {
      */
     async getQueryHistory() {
         return await API.request('/queries/history/');
+    },
+
+    /**
+     * Get saved queries for the current user
+     */
+    async getSavedQueries() {
+        return await API.request('/queries/saved-queries/');
+    },
+
+    /**
+     * Save a new query (name, query_text, optional platform)
+     */
+    async saveQuery(name, queryText, platform = '') {
+        return await API.request('/queries/saved-queries/', {
+            method: 'POST',
+            body: JSON.stringify({ name, query_text: queryText, platform: platform || '' })
+        });
+    },
+
+    /**
+     * Delete a saved query by id
+     */
+    async deleteSavedQuery(id) {
+        return await API.request(`/queries/saved-queries/${id}/`, { method: 'DELETE' });
     },
 
     /**

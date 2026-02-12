@@ -406,6 +406,63 @@ class Command(BaseCommand):
         result = ingest.ingest_document("GitHub Push Files", github_push_files, platform="github")
         self.stdout.write(f"  ✓ Added: GitHub Push Files ({result.get('chunks', 0)} chunks)")
         
+        github_clone = """
+        GITHUB: How to Clone a Repository
+        
+        Steps to clone a GitHub repository:
+        
+        1. **Basic Git Clone Command:**
+           ```bash
+           git clone <repository-url>
+           ```
+        
+        2. **Clone Using HTTPS:**
+           ```bash
+           git clone https://github.com/username/repository-name.git
+           ```
+           - Most common method
+           - Requires GitHub username and password/token
+           - Works from anywhere
+        
+        3. **Clone Using SSH:**
+           ```bash
+           git clone git@github.com:username/repository-name.git
+           ```
+           - Requires SSH key setup
+           - More secure, no password needed
+           - Faster for frequent operations
+        
+        4. **Clone into a Specific Directory:**
+           ```bash
+           git clone https://github.com/username/repository-name.git my-folder-name
+           ```
+           - Creates repository in specified folder
+           - Useful for organizing projects
+        
+        5. **Clone a Specific Branch:**
+           ```bash
+           git clone -b branch-name https://github.com/username/repository-name.git
+           ```
+           - Clones only the specified branch
+           - Useful for feature branches or releases
+        
+        6. **Step-by-Step Process:**
+           - Get the repository URL from GitHub (click "Code" button)
+           - Open terminal and navigate to desired location
+           - Run git clone command with the URL
+           - Enter the cloned directory: `cd repository-name`
+        
+        7. **For Your Current Project:**
+           ```bash
+           git clone https://github.com/your-username/Chat_Interface.git
+           cd Chat_Interface
+           ```
+        
+        Best Practice: Use HTTPS for one-time clones, SSH for frequent access. Always verify you're cloning the correct repository before proceeding.
+        """
+        result = ingest.ingest_document("GitHub Clone Repository", github_clone, platform="github")
+        self.stdout.write(f"  ✓ Added: GitHub Clone Repository ({result.get('chunks', 0)} chunks)")
+        
         # ===== ZOHO KNOWLEDGE =====
         
         zoho_deal_management = """
@@ -757,7 +814,7 @@ class Command(BaseCommand):
         self.stdout.write("\nAdded knowledge documents for:")
         self.stdout.write("  - Stripe: Payment retry, refunds, subscriptions, webhooks, chargebacks, upgrades")
         self.stdout.write("  - Salesforce: Lead qualification, conversion, pipeline")
-        self.stdout.write("  - GitHub: PR best practices, merge guidelines, commits, create repo, push files")
+        self.stdout.write("  - GitHub: PR best practices, merge guidelines, commits, create repo, push files, clone repository")
         self.stdout.write("  - Zoho: Deal management, stage progression, custom fields, automation, reports, email templates, blueprints")
         self.stdout.write("  - Trello: Card organization, board structure, create card, card best practices")
         self.stdout.write("\nYou can now test RAG queries for these platforms!")

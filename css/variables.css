@@ -16,62 +16,62 @@
   --color-github-light: #3D4450;
   --color-github-accent: #2EA44F;
 
-  /* Primary Palette - Professional Deep Indigo */
-  --color-primary: #4F46E5;
-  --color-primary-hover: #4338CA;
-  --color-primary-active: #3730A3;
+  /* Primary Palette - Dark mode (brighter) */
+  --color-primary: #7A73FF;
+  --color-primary-hover: #8B85FF;
+  --color-primary-active: #635BFF;
 
-  /* Semantic Colors */
+  /* Semantic Colors - Dark mode (brighter) */
   --color-success: #10B981;
-  --color-success-bg: rgba(16, 185, 129, 0.1);
+  --color-success-bg: rgba(0, 212, 170, 0.15);
   --color-warning: #F59E0B;
-  --color-warning-bg: rgba(245, 158, 11, 0.1);
+  --color-warning-bg: rgba(255, 171, 0, 0.15);
   --color-error: #EF4444;
-  --color-error-bg: rgba(239, 68, 68, 0.1);
+  --color-error-bg: rgba(255, 86, 48, 0.15);
   --color-info: #3B82F6;
-  --color-info-bg: rgba(59, 130, 246, 0.1);
+  --color-info-bg: rgba(0, 101, 255, 0.15);
 
-  /* Neutral Palette - Cool Slate */
+  /* Neutral Palette - Dark mode */
   --color-white: #FFFFFF;
-  --color-gray-50: #F8FAFC;
-  --color-gray-100: #F1F5F9;
-  --color-gray-200: #E2E8F0;
-  --color-gray-300: #CBD5E1;
-  --color-gray-400: #94A3B8;
-  --color-gray-500: #64748B;
-  --color-gray-600: #475569;
-  --color-gray-700: #334155;
-  --color-gray-800: #1E293B;
-  --color-gray-900: #0F172A;
+  --color-gray-50: #21262D;
+  --color-gray-100: #30363D;
+  --color-gray-200: #484F58;
+  --color-gray-300: #6E7681;
+  --color-gray-400: #8B949E;
+  --color-gray-500: #A0AEC0;
+  --color-gray-600: #C9D1D9;
+  --color-gray-700: #E6EDF3;
+  --color-gray-800: #F0F6FC;
+  --color-gray-900: #FFFFFF;
 
-  /* Text Colors */
-  --text-primary: #1E293B;
-  --text-secondary: #64748B;
-  --text-muted: #94A3B8;
-  --text-inverse: #FFFFFF;
+  /* Text Colors - Dark mode defaults */
+  --text-primary: #F7FAFC;
+  --text-secondary: #A0AEC0;
+  --text-muted: #718096;
+  --text-inverse: #1A202C;
 
-  /* Background Colors */
-  --bg-body: #F8FAFC;
-  --bg-card: #FFFFFF;
-  --bg-elevated: #FFFFFF;
-  --bg-input: #FFFFFF;
-  --bg-tertiary: #F1F5F9;
-  --bg-hover: rgba(79, 70, 229, 0.04);
+  /* Background Colors - Dark mode defaults */
+  --bg-body: #0D1117;
+  --bg-card: #161B22;
+  --bg-elevated: #21262D;
+  --bg-input: #21262D;
+  --bg-hover: rgba(99, 91, 255, 0.08);
 
   /* Border Colors */
-  --border-light: #E2E8F0;
-  --border-default: #CBD5E1;
-  --border-focus: #4F46E5;
+  --border-light: #30363D;
+  --border-default: #484F58;
+  --border-strong: #6E7681;
+  --border-focus: #7A73FF;
 
-  /* Shadows - Refined and Softer */
-  --shadow-xs: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
-  --shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.1), 0 1px 2px -1px rgba(15, 23, 42, 0.1);
-  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.1), 0 2px 4px -2px rgba(15, 23, 42, 0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.1), 0 4px 6px -4px rgba(15, 23, 42, 0.1);
-  --shadow-xl: 0 20px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.1);
-  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-  --shadow-card-hover: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  --shadow-glow: 0 0 15px rgba(79, 70, 229, 0.25);
+  /* Shadows - Dark mode */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.7);
+  --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-card-hover: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 15px rgba(99, 91, 255, 0.3);
 
   /* Typography */
   --font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
@@ -151,58 +151,7 @@
   --container-2xl: 1440px;
 }
 
-/* Dark Theme */
-[data-theme="dark"] {
-  /* Text Colors */
-  --text-primary: #F7FAFC;
-  --text-secondary: #A0AEC0;
-  --text-muted: #718096;
-  --text-inverse: #1A202C;
-
-  /* Background Colors */
-  --bg-body: #0D1117;
-  --bg-card: #161B22;
-  --bg-elevated: #21262D;
-  --bg-input: #21262D;
-  --bg-hover: rgba(99, 91, 255, 0.08);
-
-  /* Neutral Palette (inverted for dark) */
-  --color-gray-50: #21262D;
-  --color-gray-100: #30363D;
-  --color-gray-200: #484F58;
-  --color-gray-300: #6E7681;
-  --color-gray-400: #8B949E;
-  --color-gray-500: #A0AEC0;
-  --color-gray-600: #C9D1D9;
-  --color-gray-700: #E6EDF3;
-  --color-gray-800: #F0F6FC;
-  --color-gray-900: #FFFFFF;
-
-  /* Border Colors */
-  --border-light: #30363D;
-  --border-default: #484F58;
-  --border-focus: #7A73FF;
-
-  /* Shadows (softer for dark mode) */
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
-  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.7);
-  --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.4);
-  --shadow-card-hover: 0 8px 32px rgba(0, 0, 0, 0.5);
-
-  /* Semantic Colors (brighter for dark) */
-  --color-success-bg: rgba(0, 212, 170, 0.15);
-  --color-warning-bg: rgba(255, 171, 0, 0.15);
-  --color-error-bg: rgba(255, 86, 48, 0.15);
-  --color-info-bg: rgba(0, 101, 255, 0.15);
-
-  /* Primary (slightly brighter) */
-  --color-primary: #7A73FF;
-  --color-primary-hover: #8B85FF;
-  --color-primary-active: #635BFF;
-}
+/* Dark theme is now the default - no separate dark theme block needed */
 
 /* Smooth theme transition */
 html {

@@ -418,6 +418,10 @@ class WorkflowExecutor:
                 result = stripe_client.fetch_products(api_key, filters=params)
             elif tool_name == "get_revenue":
                 result = stripe_client.fetch_revenue(api_key, filters=params)
+                if result.get('error'):
+                    raise RuntimeError(result.get('error'))
+                # Revenue returns a summary dict, not {'data': [...]}; pass through for summarizer
+                return result
             elif tool_name == "get_balance":
                 result = stripe_client.fetch_balance(api_key, filters=params)
                 # Return balance data in a format that can be displayed
@@ -462,7 +466,7 @@ class WorkflowExecutor:
             else:
                 raise ValueError(f"Unknown Stripe tool: {tool_name}")
             
-            # Stripe client returns {'data': [...], 'count': N, 'error': '...'}
+            # Stripe client returns {'data': [...], 'count': N, 'error': '...'} for list tools
             if result.get('error'):
                 raise RuntimeError(result.get('error'))
             return result.get('data', [])
@@ -1213,7 +1217,13 @@ class WorkflowExecutor:
         elif isinstance(last_step_data, dict):
             # Revenue or summary data
             if 'total_revenue' in last_step_data:
-                return f"Total revenue: ${last_step_data['total_revenue']:,.2f}"
+                total = last_step_data['total_revenue']
+                period = last_step_data.get('period', '')
+                period_label = f" ({period})" if period else ""
+                charges = last_step_data.get('successful_charges') or last_step_data.get('invoice_count')
+                if charges is not None:
+                    return f"Revenue{period_label}: ${total:,.2f} from {charges} charge(s)."
+                return f"Revenue{period_label}: ${total:,.2f}"
             return f"Query completed successfully with {len(last_step_data)} field(s)."
         else:
             return "Query completed successfully."

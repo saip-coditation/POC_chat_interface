@@ -61,6 +61,7 @@
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
+
 .btn--secondary:hover:not(:disabled) {
     background: var(--color-gray-50);
     border-color: var(--color-gray-400);
@@ -68,6 +69,7 @@
     transform: translateY(-1px);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
+
 
 /* Ghost Button */
 .btn--ghost {
@@ -142,12 +144,18 @@
     box-shadow: var(--shadow-card);
     padding: var(--space-6);
     transition: all var(--transition-base);
+    border: 1px solid var(--border-light);
 }
+
+
+
+
 
 .card--hover:hover {
     box-shadow: var(--shadow-card-hover);
     transform: translateY(-2px);
 }
+
 
 .card--bordered {
     box-shadow: none;
@@ -205,17 +213,23 @@
     border: 1px solid var(--border-default);
     border-radius: var(--radius-md);
     transition: all var(--transition-fast);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
 }
+
 
 .form-input:hover {
     border-color: var(--border-focus);
 }
 
+
 .form-input:focus {
     outline: none;
     border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.15);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1), 0 2px 4px rgba(15, 23, 42, 0.08);
 }
+
+
+
 
 .form-input::placeholder {
     color: var(--text-muted);
@@ -925,6 +939,11 @@
     transition: transform var(--transition-fast);
 }
 
+
+
+
+
+
 .result-card:hover {
     box-shadow: var(--shadow-lg);
     border-color: var(--color-primary-light);
@@ -940,6 +959,15 @@
     align-items: center;
 }
 
+.result-card__body {
+    padding: var(--space-5);
+    color: var(--text-primary);
+    line-height: 1.7;
+}
+
+
+
+
 .result-card__title {
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-semibold);
@@ -951,90 +979,36 @@
     gap: var(--space-2);
 }
 
+
 .result-card__body {
     padding: var(--space-5);
 }
 
-/* --------------------------------------------------------------------------
-   Theme Toggle
-   -------------------------------------------------------------------------- */
-
-.theme-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    border-radius: var(--radius-full);
-    background: var(--bg-hover);
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    border: 1px solid transparent;
-}
-
-.theme-toggle:hover {
-    background: var(--color-gray-100);
-    color: var(--text-primary);
-    border-color: var(--border-light);
-}
-
-.theme-toggle:focus-visible {
-    outline: 2px solid var(--color-primary);
-    outline-offset: 2px;
-}
-
-/* Icon visibility based on theme */
-.theme-toggle__icon {
-    transition: opacity var(--transition-fast), transform var(--transition-fast);
-}
-
-/* In light mode: show moon, hide sun */
-.theme-toggle__icon--sun {
-    display: none;
-}
-
-.theme-toggle__icon--moon {
-    display: block;
-}
-
-/* In dark mode: show sun, hide moon */
-[data-theme="dark"] .theme-toggle__icon--sun {
-    display: block;
-}
-
-[data-theme="dark"] .theme-toggle__icon--moon {
-    display: none;
-}
-
-/* Hover animation */
-.theme-toggle:hover .theme-toggle__icon {
-    transform: rotate(15deg);
-}
-
-/* Dark mode specific styles for theme toggle */
-[data-theme="dark"] .theme-toggle {
-    background: rgba(255, 255, 255, 0.05);
-}
-
-[data-theme="dark"] .theme-toggle:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: var(--border-light);
-}
+/* Theme toggle removed - dark mode only */
 
 /* --------------------------------------------------------------------------
    AI Response Markdown Tables
    -------------------------------------------------------------------------- */
 
 .ai-response {
-    line-height: 1.6;
+    line-height: 1.7;
     color: var(--text-primary);
+    overflow: visible;
+    max-width: 100%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
+
+
+
+
+
 
 .ai-response p {
     margin-bottom: var(--space-3);
     color: var(--text-primary);
 }
+
 
 .ai-response h1,
 .ai-response h2,
@@ -1064,11 +1038,13 @@
     color: var(--text-primary);
 }
 
+
 .ai-response li {
     margin-bottom: var(--space-2);
     line-height: 1.6;
     color: var(--text-primary);
 }
+
 
 .ai-response li::marker {
     color: var(--color-primary);
@@ -1138,8 +1114,16 @@
     font-size: var(--font-size-sm);
     border: 1px solid var(--border-light);
     border-radius: var(--radius-md);
-    overflow: hidden;
+    overflow: visible;
+    display: block;
+    max-width: 100%;
 }
+
+
+
+
+
+
 
 .ai-response thead {
     background: var(--bg-tertiary);
@@ -1152,13 +1136,22 @@
     padding: var(--space-3) var(--space-4);
     border-bottom: 1px solid var(--border-light);
     color: var(--text-secondary);
+    white-space: normal;
+    word-wrap: break-word;
 }
+
 
 .ai-response td {
     padding: var(--space-3) var(--space-4);
     border-bottom: 1px solid var(--border-light);
     color: var(--text-primary);
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    max-width: none;
+    overflow: visible;
 }
+
 
 .ai-response tr:last-child td {
     border-bottom: none;
@@ -1167,6 +1160,7 @@
 .ai-response tr:hover td {
     background: var(--bg-hover);
 }
+
 
 .ai-response strong {
     color: var(--text-primary);
@@ -1183,6 +1177,7 @@
     border: 1px solid var(--border-light);
 }
 
+
 .ai-response pre {
     background: var(--bg-tertiary);
     padding: var(--space-4);
@@ -1190,11 +1185,16 @@
     font-family: var(--font-mono);
     font-size: 0.9em;
     overflow-x: auto;
+    overflow-y: visible;
     border: 1px solid var(--border-light);
     color: var(--text-primary);
     line-height: 1.5;
     margin: var(--space-3) 0;
+    max-width: 100%;
+    word-wrap: break-word;
 }
+
+
 
 .ai-response pre code {
     background: transparent;
@@ -1204,28 +1204,28 @@
     color: inherit;
 }
 
-[data-theme="dark"] .ai-response code,
-[data-theme="dark"] .ai-response pre {
+.ai-response code,
+.ai-response pre {
     background: rgba(255, 255, 255, 0.08);
     border-color: rgba(255, 255, 255, 0.1);
     color: var(--text-primary);
 }
 
-[data-theme="dark"] .ai-response pre code {
+.ai-response pre code {
     background: transparent;
 }
 
 /* Dark mode table adjustments */
-[data-theme="dark"] .ai-response table {
+.ai-response table {
     background: rgba(255, 255, 255, 0.03);
     border-color: var(--border-default);
 }
 
-[data-theme="dark"] .ai-response thead {
+.ai-response thead {
     background: rgba(255, 255, 255, 0.05);
 }
 
-[data-theme="dark"] .ai-response tbody tr:hover {
+.ai-response tbody tr:hover {
     background: rgba(255, 255, 255, 0.05);
 }
 
@@ -1237,9 +1237,11 @@
     margin-top: var(--space-4);
     border: 1px solid var(--border-light);
     border-radius: var(--radius-md);
-    overflow: hidden;
+    overflow: visible;
     background: var(--bg-card);
+    max-height: none;
 }
+
 
 .view-details__header {
     display: flex;
@@ -1284,23 +1286,31 @@
 .view-details__content {
     padding: var(--space-4);
     background: var(--bg-secondary);
-    max-height: 400px;
-    overflow-y: auto;
+    max-height: none;
+    overflow-y: visible;
+    overflow-x: auto;
 }
+
 
 .table-container {
     overflow-x: auto;
+    overflow-y: visible;
     width: 100%;
     border-radius: var(--radius-sm);
     /* Custom scrollbar for webkit */
     scrollbar-width: thin;
     scrollbar-color: var(--color-gray-400) transparent;
+    -webkit-overflow-scrolling: touch;
 }
 
+
 .table-container::-webkit-scrollbar {
-    height: 6px;
-    width: 6px;
+    height: 10px;
+    width: 10px;
 }
+
+
+
 
 .table-container::-webkit-scrollbar-track {
     background: transparent;
@@ -1336,10 +1346,13 @@
     border-bottom: 1px solid var(--border-light);
     color: var(--text-secondary);
     max-width: 200px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
+
 
 .view-details .result-table tbody tr:hover {
     background: var(--bg-hover);
@@ -1360,20 +1373,33 @@
     color: white;
 }
 
+/* Light mode: darker borders for view-details */
+
+
+
+
+
+
+
+
+
+
+
+
 /* Dark mode */
-[data-theme="dark"] .view-details {
+.view-details {
     border-color: var(--border-default);
 }
 
-[data-theme="dark"] .view-details__header {
+.view-details__header {
     background: rgba(255, 255, 255, 0.03);
 }
 
-[data-theme="dark"] .view-details__content {
+.view-details__content {
     background: rgba(0, 0, 0, 0.2);
 }
 
-[data-theme="dark"] .view-details .result-table th {
+.view-details .result-table th {
     background: rgba(255, 255, 255, 0.05);
 }
 
@@ -1393,8 +1419,10 @@
     transition: all var(--transition-base);
 }
 
+
+
 /* Glassmorphism for chart container */
-[data-theme="dark"] .chat-chart-container {
+.chat-chart-container {
     background: rgba(255, 255, 255, 0.03);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);

@@ -9,14 +9,21 @@ import threading
 import queue
 from datetime import datetime
 from django.http import StreamingHttpResponse
+from django.db import IntegrityError
 from rest_framework import status, generics
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.platforms.models import PlatformConnection
 from utils.encryption import decrypt_api_key
-from .models import QueryLog
-from .serializers import ProcessQuerySerializer, QueryLogSerializer
+from .models import QueryLog, SavedQuery
+from .serializers import (
+    ProcessQuerySerializer,
+    QueryLogSerializer,
+    SavedQuerySerializer,
+    SavedQueryCreateSerializer,
+)
 
 # Import new Orchestrator
 from orchestrator import get_query_orchestrator, OrchestratorContext
@@ -31,6 +38,64 @@ class QueryHistoryView(generics.ListAPIView):
 
     def get_queryset(self):
         return QueryLog.objects.filter(user=self.request.user).order_by('-created_at')
+
+
+class SavedQueryListCreateView(APIView):
+    """List and create saved queries for the authenticated user."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        qs = SavedQuery.objects.filter(user=request.user)
+        serializer = SavedQuerySerializer(qs, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = SavedQueryCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        
+        # Check if query with same name already exists for this user
+        existing = SavedQuery.objects.filter(
+            user=request.user,
+            name=data['name']
+        ).first()
+        
+        if existing:
+            return Response(
+                {'error': 'You already have a saved query with this name.', 'detail': 'A query with this name already exists in your saved queries.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        try:
+            saved = SavedQuery.objects.create(
+                user=request.user,
+                name=data['name'],
+                query_text=data['query_text'],
+                platform=(data.get('platform') or '')[:20] or '',
+            )
+            return Response(
+                SavedQuerySerializer(saved).data,
+                status=status.HTTP_201_CREATED,
+            )
+        except IntegrityError as e:
+            # Catch any other integrity errors (shouldn't happen with the check above, but just in case)
+            logger.warning(f"IntegrityError saving query: {e}")
+            return Response(
+                {'error': 'You already have a saved query with this name.', 'detail': 'A query with this name already exists in your saved queries.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+
+class SavedQueryDestroyView(APIView):
+    """Delete a saved query (owner only)."""
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+        saved = SavedQuery.objects.filter(user=request.user, pk=pk).first()
+        if not saved:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        saved.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 

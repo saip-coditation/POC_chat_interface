@@ -19,38 +19,12 @@ const App = {
   },
 
   /**
-   * Initialize theme from localStorage or system preference
+   * Initialize theme - always dark mode
    */
   initTheme() {
-    const savedTheme = localStorage.getItem('databridge_theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-    if (savedTheme) {
-      document.documentElement.setAttribute('data-theme', savedTheme);
-    } else if (prefersDark) {
-      document.documentElement.setAttribute('data-theme', 'dark');
-    }
-    // Light theme is default, no attribute needed
-  },
-
-  /**
-   * Toggle theme between light and dark
-   */
-  toggleTheme() {
-    const currentTheme = document.documentElement.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-
-    if (newTheme === 'light') {
-      document.documentElement.removeAttribute('data-theme');
-    } else {
-      document.documentElement.setAttribute('data-theme', 'dark');
-    }
-
-    localStorage.setItem('databridge_theme', newTheme);
-
-    // Show toast notification
-    const themeName = newTheme === 'dark' ? 'Dark' : 'Light';
-    App.showToast(`${themeName} mode enabled`, 'info');
+    // Always set dark mode
+    document.documentElement.setAttribute('data-theme', 'dark');
+    localStorage.setItem('databridge_theme', 'dark');
   },
 
   /**
@@ -60,11 +34,7 @@ const App = {
     // Navigation
     window.addEventListener('hashchange', App.handleRouteChange);
 
-    // Theme toggle
-    const themeToggle = Utils.$('#theme-toggle');
-    if (themeToggle) {
-      themeToggle.addEventListener('click', App.toggleTheme);
-    }
+    // Theme toggle removed - dark mode only
 
     // Login form
     const loginForm = Utils.$('#login-form');
@@ -123,6 +93,38 @@ const App = {
         }
       });
     });
+
+    // Saved queries: run (click label or Run) or delete (delegated)
+    const savedList = Utils.$('#saved-queries-list');
+    if (savedList) {
+      savedList.addEventListener('click', (e) => {
+        const deleteBtn = e.target.closest('.saved-query-item__delete');
+        const item = e.target.closest('.saved-query-item');
+        if (!item) return;
+        const query = item.dataset.query;
+        const platform = item.dataset.platform || '';
+        const id = item.dataset.id;
+        if (deleteBtn && id) {
+          e.preventDefault();
+          e.stopPropagation();
+          App.handleSavedQueryDelete(id);
+        } else if (query) {
+          e.preventDefault();
+          Utils.$('#query-input').value = query;
+          Utils.$('#query-submit').disabled = false;
+          App.handleQuery(new Event('submit'));
+        }
+      });
+    }
+
+    // Save current query
+    const saveQueryBtn = Utils.$('#save-query-btn');
+    if (saveQueryBtn) {
+      saveQueryBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        App.handleSaveQuery();
+      });
+    }
 
     // Register form
     const registerForm = Utils.$('#register-form');
@@ -743,6 +745,8 @@ const App = {
       Utils.$('#query-input').disabled = false;
       // Re-render messages for current session if returning to page
       App.renderMessages();
+      // Load saved queries for one-click run
+      App.loadSavedQueries();
     }
   },
 
@@ -941,6 +945,94 @@ const App = {
         </span>
       `;
     }).join('');
+  },
+
+  /**
+   * Load and render saved queries
+   */
+  async loadSavedQueries() {
+    const listEl = Utils.$('#saved-queries-list');
+    if (!listEl || !State.isLoggedIn()) return;
+    try {
+      const saved = await API.getSavedQueries();
+      App.renderSavedQueries(saved);
+    } catch (err) {
+      console.warn('Failed to load saved queries', err);
+      listEl.innerHTML = '';
+    }
+  },
+
+  /**
+   * Render saved queries list into #saved-queries-list
+   */
+  renderSavedQueries(list) {
+    const listEl = Utils.$('#saved-queries-list');
+    const container = Utils.$('#saved-queries-container');
+    if (!listEl || !container) return;
+    if (!list || list.length === 0) {
+      listEl.innerHTML = '';
+      container.classList.add('hidden');
+      return;
+    }
+    container.classList.remove('hidden');
+    listEl.innerHTML = list.map((s) => {
+      const name = Utils.escapeHtml(s.name);
+      const queryAttr = Utils.escapeHtml(s.query_text);
+      const platformAttr = Utils.escapeHtml(s.platform || '');
+      return `
+        <div class="saved-query-item" data-id="${s.id}" data-query="${queryAttr}" data-platform="${platformAttr}">
+          <span class="saved-query-item__label">${name}</span>
+          <button type="button" class="saved-query-item__run" title="Run">Run</button>
+          <button type="button" class="saved-query-item__delete" title="Remove" aria-label="Remove">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      `;
+    }).join('');
+  },
+
+  /**
+   * Save current query as favorite (prompt for name)
+   */
+  async handleSaveQuery() {
+    const input = Utils.$('#query-input');
+    const query = input && input.value.trim();
+    if (!query) {
+      App.showToast('Enter a query first, then click save.', 'info');
+      return;
+    }
+    // Use query text as name (truncated); save directly, no prompt
+    const name = query.length > 120 ? query.slice(0, 117) + '...' : query;
+    try {
+      await API.saveQuery(name, query, State.activeSession === 'all' ? '' : State.activeSession);
+      App.showToast('Added to saved queries.', 'success');
+      App.loadSavedQueries();
+    } catch (err) {
+      const msg = err.message || '';
+      // Check for duplicate query error messages
+      if (msg.toLowerCase().includes('already have') || 
+          msg.toLowerCase().includes('already exists') ||
+          msg.toLowerCase().includes('unique') || 
+          msg.includes('already') || 
+          msg.includes('400')) {
+        App.showToast('You already have a saved query with this name.', 'info');
+      } else {
+        App.showToast(msg || 'Failed to save query', 'error');
+      }
+    }
+  },
+
+  /**
+   * Delete a saved query and refresh list
+   */
+  async handleSavedQueryDelete(id) {
+    try {
+      await API.deleteSavedQuery(id);
+      App.showToast('Saved query removed.', 'success');
+      App.loadSavedQueries();
+    } catch (err) {
+      App.showToast(err.message || 'Failed to delete', 'error');
+    }
   },
 
   /**

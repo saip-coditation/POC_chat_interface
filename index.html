@@ -54,27 +54,6 @@
             <a href="#login" class="nav__link" data-nav="login">Login</a>
             <a href="#register" class="btn btn--primary btn--sm">Sign Up</a>
           </div>
-          <!-- Theme Toggle Button -->
-          <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme" title="Toggle light/dark theme">
-            <!-- Sun icon (shown in dark mode) -->
-            <svg class="theme-toggle__icon theme-toggle__icon--sun" width="20" height="20" viewBox="0 0 24 24"
-              fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="5" />
-              <line x1="12" y1="1" x2="12" y2="3" />
-              <line x1="12" y1="21" x2="12" y2="23" />
-              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-              <line x1="1" y1="12" x2="3" y2="12" />
-              <line x1="21" y1="12" x2="23" y2="12" />
-              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-            </svg>
-            <!-- Moon icon (shown in light mode) -->
-            <svg class="theme-toggle__icon theme-toggle__icon--moon" width="20" height="20" viewBox="0 0 24 24"
-              fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-            </svg>
-          </button>
           <button class="btn btn--ghost btn--sm" id="logout-btn">Logout</button>
         </div>
       </div>
@@ -696,48 +675,60 @@
                 <h2 class="chat-welcome__title">What would you like to know?</h2>
                 <p class="chat-welcome__text">Ask questions about your business data in plain English</p>
 
-                <div class="example-queries">
-                  <button class="example-query" data-query="Show unpaid invoices" data-platform="stripe">
-                    <svg class="example-query__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                      stroke-width="2">
-                      <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
-                      <line x1="1" y1="10" x2="23" y2="10" />
+                <p class="chat-welcome__hint">Try an example or use a quick action</p>
+                <div class="example-queries" id="example-queries">
+                  <button type="button" class="example-query" data-query="Show me open pull requests" data-platform="github">
+                    <svg class="example-query__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="18" cy="18" r="3" /><circle cx="6" cy="6" r="3" /><path d="M13 6h3a2 2 0 0 1 2 2v7" /><line x1="6" y1="9" x2="6" y2="21" />
                     </svg>
-                    Show unpaid invoices
+                    Open PRs
                   </button>
-                  <button class="example-query" data-query="Show my recent deals" data-platform="zoho">
-                    <svg class="example-query__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                      stroke-width="2">
-                      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-                      <polyline points="14 2 14 8 20 8" />
+                  <button type="button" class="example-query" data-query="Show unpaid invoices" data-platform="stripe">
+                    <svg class="example-query__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="1" y="4" width="22" height="16" rx="2" ry="2" /><line x1="1" y1="10" x2="23" y2="10" />
                     </svg>
-                    Show recent deals
+                    Unpaid invoices
                   </button>
-                  <button class="example-query" data-query="Revenue this month" data-platform="stripe">
-                    <svg class="example-query__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                      stroke-width="2">
+                  <button type="button" class="example-query" data-query="Deals closing this week" data-platform="zoho">
+                    <svg class="example-query__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                    Deals closing this week
+                  </button>
+                  <button type="button" class="example-query" data-query="Revenue this month" data-platform="stripe">
+                    <svg class="example-query__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <line x1="12" y1="1" x2="12" y2="23" />
                       <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                     </svg>
                     Revenue this month
                   </button>
-                  <button class="example-query" data-query="List all contacts" data-platform="zoho">
-                    <svg class="example-query__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                      stroke-width="2">
+                  <button type="button" class="example-query" data-query="Show my recent deals" data-platform="zoho">
+                    <svg class="example-query__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                      <polyline points="14 2 14 8 20 8" />
+                    </svg>
+                    Recent deals
+                  </button>
+                  <button type="button" class="example-query" data-query="List all contacts" data-platform="zoho">
+                    <svg class="example-query__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <circle cx="12" cy="12" r="10" />
                       <polyline points="12 6 12 12 16 14" />
                     </svg>
-                    List all contacts
+                    List contacts
                   </button>
-                  <button class="example-query" data-query="Show me trello boards" data-platform="trello">
-                    <svg class="example-query__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                      stroke-width="2">
+                  <button type="button" class="example-query" data-query="Show me trello boards" data-platform="trello">
+                    <svg class="example-query__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
                       <line x1="12" y1="3" x2="12" y2="21" />
                       <line x1="3" y1="9" x2="21" y2="9" />
                     </svg>
-                    Show trello boards
+                    Trello boards
                   </button>
+                </div>
+
+                <div class="saved-queries hidden" id="saved-queries-container">
+                  <p class="saved-queries__label">Saved</p>
+                  <div class="saved-queries__list" id="saved-queries-list"></div>
                 </div>
               </div>
 
@@ -747,6 +738,13 @@
 
             <div class="chat-input-container">
               <form class="chat-input-wrapper" id="query-form">
+                <button type="button" class="chat-save-query-btn" id="save-query-btn" title="Save this query">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                    <polyline points="17 21 17 13 7 13 7 21" />
+                    <polyline points="7 3 7 8 15 8" />
+                  </svg>
+                </button>
                 <input type="text" class="chat-input" id="query-input" placeholder="Ask anything about your data..."
                   autocomplete="off">
                 <button type="submit" class="chat-send-btn" id="query-submit" disabled>

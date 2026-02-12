@@ -31,3 +31,24 @@ class QueryLog(models.Model):
     
     def __str__(self):
         return f"{self.user.email} - {self.query_text[:50]}"
+
+
+class SavedQuery(models.Model):
+    """User's saved favorite queries for one-click run."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='saved_queries'
+    )
+    name = models.CharField(max_length=120)
+    query_text = models.TextField()
+    platform = models.CharField(max_length=20, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = [['user', 'name']]
+
+    def __str__(self):
+        return f"{self.user.email} - {self.name}"
