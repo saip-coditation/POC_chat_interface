@@ -8,6 +8,7 @@ from .views import (
     QueryHistoryView,
     SavedQueryListCreateView,
     SavedQueryDestroyView,
+    QueryAutocompleteView,
 )
 
 urlpatterns = [
@@ -15,4 +16,5 @@ urlpatterns = [
     path('history/', QueryHistoryView.as_view(), name='query_history'),
     path('saved-queries/', SavedQueryListCreateView.as_view(), name='saved_query_list_create'),
     path('saved-queries/<int:pk>/', SavedQueryDestroyView.as_view(), name='saved_query_destroy'),
+    path('autocomplete/', QueryAutocompleteView.as_view(), name='query_autocomplete'),
 ]

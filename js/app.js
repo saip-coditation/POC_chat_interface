@@ -73,12 +73,33 @@ const App = {
       queryForm.addEventListener('submit', App.handleQuery);
     }
 
-    // Query input
+    // Query input with autocomplete
     const queryInput = Utils.$('#query-input');
     if (queryInput) {
       queryInput.addEventListener('input', () => {
         const submitBtn = Utils.$('#query-submit');
         submitBtn.disabled = !queryInput.value.trim();
+        // Trigger autocomplete only if not selecting from dropdown
+        if (!App.autocompleteState.isSelecting) {
+          App.handleAutocomplete(queryInput.value);
+        } else {
+          // Reset flag after a short delay
+          setTimeout(() => {
+            App.autocompleteState.isSelecting = false;
+          }, 100);
+        }
+      });
+      
+      // Handle keyboard navigation
+      queryInput.addEventListener('keydown', (e) => {
+        App.handleAutocompleteKeydown(e);
+      });
+      
+      // Hide autocomplete on blur (with delay to allow clicks)
+      queryInput.addEventListener('blur', () => {
+        setTimeout(() => {
+          App.hideAutocomplete();
+        }, 200);
       });
     }
 
@@ -1046,6 +1067,9 @@ const App = {
 
     if (!query || State.isProcessing) return;
 
+    // Hide autocomplete dropdown
+    App.hideAutocomplete();
+
     // Add user message
     App.addChatMessage(query, 'user');
 
@@ -1791,6 +1815,206 @@ const App = {
     const container = Utils.$('#chat-container');
     if (container) {
       container.scrollTop = container.scrollHeight;
+    }
+  },
+
+  /**
+   * Autocomplete state
+   */
+  autocompleteState: {
+    suggestions: [],
+    selectedIndex: -1,
+    debounceTimer: null,
+    isSelecting: false, // Flag to prevent autocomplete when selecting
+  },
+
+  /**
+   * Handle autocomplete input
+   */
+  async handleAutocomplete(queryText) {
+    // Clear previous timer
+    if (App.autocompleteState.debounceTimer) {
+      clearTimeout(App.autocompleteState.debounceTimer);
+    }
+
+    // Hide if query is too short
+    if (!queryText || queryText.trim().length < 2) {
+      App.hideAutocomplete();
+      return;
+    }
+
+    // Debounce API call
+    App.autocompleteState.debounceTimer = setTimeout(async () => {
+      try {
+        const result = await API.getQuerySuggestions(queryText.trim(), 10);
+        App.autocompleteState.suggestions = result.suggestions || [];
+        App.autocompleteState.selectedIndex = -1;
+        
+        if (App.autocompleteState.suggestions.length > 0) {
+          App.renderAutocomplete(App.autocompleteState.suggestions);
+        } else {
+          App.hideAutocomplete();
+        }
+      } catch (err) {
+        console.warn('Autocomplete error:', err);
+        App.hideAutocomplete();
+      }
+    }, 300); // 300ms debounce
+  },
+
+  /**
+   * Render autocomplete dropdown
+   */
+  renderAutocomplete(suggestions) {
+    const dropdown = Utils.$('#autocomplete-dropdown');
+    if (!dropdown) return;
+
+    if (!suggestions || suggestions.length === 0) {
+      App.hideAutocomplete();
+      return;
+    }
+
+    // Store suggestions - use index to look up from array to avoid attribute encoding issues
+    dropdown.innerHTML = suggestions.map((suggestion, index) => {
+      const typeIcon = suggestion.type === 'saved' ? '💾' : 
+                       suggestion.type === 'history' ? '🕒' : '💡';
+      const platformBadge = suggestion.platform && suggestion.platform !== 'all' 
+        ? `<span class="autocomplete-item__platform">${suggestion.platform}</span>` 
+        : '';
+      
+      return `
+        <div class="autocomplete-item ${index === App.autocompleteState.selectedIndex ? 'selected' : ''}" 
+             data-index="${index}">
+          <span class="autocomplete-item__icon">${typeIcon}</span>
+          <span class="autocomplete-item__text">
+            <span class="autocomplete-item__label">${Utils.escapeHtml(suggestion.label)}</span>
+            ${platformBadge}
+          </span>
+        </div>
+      `;
+    }).join('');
+
+    // Store suggestions array on the dropdown element for lookup
+    dropdown._suggestions = suggestions;
+
+    // Add click handlers
+    dropdown.querySelectorAll('.autocomplete-item').forEach(item => {
+      item.addEventListener('click', () => {
+        // Get the index and look up the full text from the stored suggestions array
+        const index = parseInt(item.getAttribute('data-index'), 10);
+        const suggestion = dropdown._suggestions[index];
+        const text = suggestion ? suggestion.text : '';
+        App.selectAutocompleteSuggestion(text);
+      });
+    });
+
+    dropdown.classList.remove('hidden');
+  },
+
+  /**
+   * Hide autocomplete dropdown
+   */
+  hideAutocomplete() {
+    const dropdown = Utils.$('#autocomplete-dropdown');
+    if (dropdown) {
+      dropdown.classList.add('hidden');
+    }
+    App.autocompleteState.selectedIndex = -1;
+  },
+
+  /**
+   * Handle keyboard navigation in autocomplete
+   */
+  handleAutocompleteKeydown(e) {
+    const dropdown = Utils.$('#autocomplete-dropdown');
+    if (!dropdown || dropdown.classList.contains('hidden')) {
+      return;
+    }
+
+    const suggestions = App.autocompleteState.suggestions;
+    if (suggestions.length === 0) return;
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        App.autocompleteState.selectedIndex = Math.min(
+          App.autocompleteState.selectedIndex + 1,
+          suggestions.length - 1
+        );
+        App.renderAutocomplete(suggestions);
+        App.scrollAutocompleteToSelected();
+        break;
+
+      case 'ArrowUp':
+        e.preventDefault();
+        App.autocompleteState.selectedIndex = Math.max(
+          App.autocompleteState.selectedIndex - 1,
+          -1
+        );
+        App.renderAutocomplete(suggestions);
+        App.scrollAutocompleteToSelected();
+        break;
+
+      case 'Enter':
+        if (App.autocompleteState.selectedIndex >= 0 && App.autocompleteState.selectedIndex < suggestions.length) {
+          e.preventDefault();
+          const selected = suggestions[App.autocompleteState.selectedIndex];
+          if (selected && selected.text) {
+            App.selectAutocompleteSuggestion(selected.text);
+          }
+          // Don't submit form when selecting from autocomplete
+          return;
+        }
+        break;
+
+      case 'Escape':
+        e.preventDefault();
+        App.hideAutocomplete();
+        break;
+    }
+  },
+
+  /**
+   * Select an autocomplete suggestion
+   */
+  selectAutocompleteSuggestion(text) {
+    const input = Utils.$('#query-input');
+    if (input) {
+      // Set flag to prevent autocomplete from showing again
+      App.autocompleteState.isSelecting = true;
+      
+      // Hide dropdown first
+      App.hideAutocomplete();
+      
+      // Set the value
+      input.value = text;
+      
+      // Enable submit button
+      const submitBtn = Utils.$('#query-submit');
+      if (submitBtn) {
+        submitBtn.disabled = !text.trim();
+      }
+      
+      // Focus input
+      input.focus();
+      
+      // Reset flag after a short delay
+      setTimeout(() => {
+        App.autocompleteState.isSelecting = false;
+      }, 100);
+    }
+  },
+
+  /**
+   * Scroll autocomplete to selected item
+   */
+  scrollAutocompleteToSelected() {
+    const dropdown = Utils.$('#autocomplete-dropdown');
+    if (!dropdown) return;
+
+    const selectedItem = dropdown.querySelector('.autocomplete-item.selected');
+    if (selectedItem) {
+      selectedItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
   },
 

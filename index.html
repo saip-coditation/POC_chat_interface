@@ -745,8 +745,11 @@
                     <polyline points="7 3 7 8 15 8" />
                   </svg>
                 </button>
-                <input type="text" class="chat-input" id="query-input" placeholder="Ask anything about your data..."
-                  autocomplete="off">
+                <div class="chat-input-autocomplete-wrapper">
+                  <input type="text" class="chat-input" id="query-input" placeholder="Ask anything about your data..."
+                    autocomplete="off">
+                  <div class="autocomplete-dropdown hidden" id="autocomplete-dropdown"></div>
+                </div>
                 <button type="submit" class="chat-send-btn" id="query-submit" disabled>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="22" y1="2" x2="11" y2="13" />

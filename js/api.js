@@ -507,6 +507,17 @@ const API = {
     },
 
     /**
+     * Get query autocomplete suggestions
+     */
+    async getQuerySuggestions(queryText, limit = 15) {
+        if (!queryText || queryText.length < 2) {
+            return { suggestions: [] };
+        }
+        const params = new URLSearchParams({ q: queryText, limit: limit.toString() });
+        return await API.request(`/queries/autocomplete/?${params.toString()}`);
+    },
+
+    /**
      * Check if user is authenticated
      */
     isAuthenticated() {

@@ -9,7 +9,7 @@ import threading
 import queue
 from datetime import datetime
 from django.http import StreamingHttpResponse
-from django.db import IntegrityError
+from django.db import IntegrityError, models
 from rest_framework import status, generics
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -96,6 +96,288 @@ class SavedQueryDestroyView(APIView):
             return Response(status=status.HTTP_404_NOT_FOUND)
         saved.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class QueryAutocompleteView(APIView):
+    """Provide query autocomplete suggestions."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """
+        Get query suggestions based on partial input.
+        
+        Query params:
+        - q: Partial query text (required)
+        - limit: Max number of suggestions (default: 15)
+        """
+        query_text = request.query_params.get('q', '').strip()
+        # Increase default limit for better suggestions
+        limit = int(request.query_params.get('limit', 15))
+        
+        if not query_text or len(query_text) < 2:
+            return Response({'suggestions': []})
+        
+        suggestions = []
+        query_lower = query_text.lower()
+        
+        # Check if platform-specific query (prioritize patterns)
+        is_platform_query = any(p in query_lower for p in ['trello', 'zoho', 'stripe', 'github', 'salesforce'])
+        
+        # 1. Get matching saved queries (limit to 3 if platform query to make room for patterns)
+        saved_limit = 3 if is_platform_query else limit
+        saved_queries = SavedQuery.objects.filter(
+            user=request.user
+        ).filter(
+            models.Q(name__icontains=query_text) | 
+            models.Q(query_text__icontains=query_text)
+        )[:saved_limit]
+        
+        for sq in saved_queries:
+            suggestions.append({
+                'text': sq.query_text,
+                'type': 'saved',
+                'label': sq.name,
+                'platform': sq.platform or 'all'
+            })
+        
+        # 2. Get matching query history (limit to 2 if platform query)
+        history_limit = 2 if is_platform_query else (limit - len(suggestions))
+        if history_limit > 0:
+            recent_queries = QueryLog.objects.filter(
+                user=request.user,
+                query_text__icontains=query_text,
+                was_successful=True
+            ).order_by('-created_at')[:history_limit]
+            
+            for ql in recent_queries:
+                # Avoid duplicates
+                if not any(s['text'] == ql.query_text for s in suggestions):
+                    suggestions.append({
+                        'text': ql.query_text,
+                        'type': 'history',
+                        'label': ql.query_text[:60] + ('...' if len(ql.query_text) > 60 else ''),
+                        'platform': ql.platform or 'all'
+                    })
+        
+        # 3. Add common query patterns (prioritize when platform is mentioned)
+        remaining_limit = limit - len(suggestions)
+        if remaining_limit > 0:
+            # Use full limit for patterns when platform is mentioned (to ensure we get enough patterns)
+            pattern_limit = limit * 2 if is_platform_query else remaining_limit
+            common_patterns = self._get_common_patterns(query_lower, pattern_limit)
+            for pattern in common_patterns:
+                # Check for duplicates by text (case-insensitive)
+                is_duplicate = any(s['text'].lower().strip() == pattern['text'].lower().strip() for s in suggestions)
+                if not is_duplicate:
+                    suggestions.append(pattern)
+                    if len(suggestions) >= limit:
+                        break
+        
+        return Response({
+            'suggestions': suggestions[:limit],
+            'query': query_text
+        })
+    
+    def _get_common_patterns(self, query_lower, limit):
+        """Get common query patterns based on keywords."""
+        patterns = []
+        
+        # Stripe patterns
+        if any(word in query_lower for word in ['invoice', 'invoic', 'bill', 'payment']):
+            patterns.extend([
+                {'text': 'Show unpaid invoices', 'type': 'pattern', 'label': 'Unpaid invoices', 'platform': 'stripe'},
+                {'text': 'List all invoices this month', 'type': 'pattern', 'label': 'Invoices this month', 'platform': 'stripe'},
+                {'text': 'Show recent payments', 'type': 'pattern', 'label': 'Recent payments', 'platform': 'stripe'},
+            ])
+        
+        if any(word in query_lower for word in ['revenue', 'income', 'money', 'earn']):
+            patterns.extend([
+                {'text': 'Revenue this month', 'type': 'pattern', 'label': 'Monthly revenue', 'platform': 'stripe'},
+                {'text': 'Revenue this week', 'type': 'pattern', 'label': 'Weekly revenue', 'platform': 'stripe'},
+                {'text': 'Total revenue', 'type': 'pattern', 'label': 'Total revenue', 'platform': 'stripe'},
+            ])
+        
+        if any(word in query_lower for word in ['customer', 'client', 'user']):
+            patterns.extend([
+                {'text': 'List all customers', 'type': 'pattern', 'label': 'All customers', 'platform': 'stripe'},
+                {'text': 'Show recent customers', 'type': 'pattern', 'label': 'Recent customers', 'platform': 'stripe'},
+                {'text': 'Customer growth this month', 'type': 'pattern', 'label': 'Customer growth', 'platform': 'stripe'},
+            ])
+        
+        if any(word in query_lower for word in ['subscription', 'sub', 'plan']):
+            patterns.extend([
+                {'text': 'List active subscriptions', 'type': 'pattern', 'label': 'Active subscriptions', 'platform': 'stripe'},
+                {'text': 'Show subscription revenue', 'type': 'pattern', 'label': 'Subscription revenue', 'platform': 'stripe'},
+            ])
+        
+        # Zoho patterns - Trigger when "zoho" is mentioned
+        if 'zoho' in query_lower:
+            patterns.extend([
+                {'text': 'List all contacts', 'type': 'pattern', 'label': 'All contacts', 'platform': 'zoho'},
+                {'text': 'Show recent contacts', 'type': 'pattern', 'label': 'Recent contacts', 'platform': 'zoho'},
+                {'text': 'List all deals', 'type': 'pattern', 'label': 'All deals', 'platform': 'zoho'},
+                {'text': 'Show deals closing this week', 'type': 'pattern', 'label': 'Deals this week', 'platform': 'zoho'},
+                {'text': 'Show won deals', 'type': 'pattern', 'label': 'Won deals', 'platform': 'zoho'},
+                {'text': 'Show deals in negotiation', 'type': 'pattern', 'label': 'Deals in negotiation', 'platform': 'zoho'},
+                {'text': 'List all leads', 'type': 'pattern', 'label': 'All leads', 'platform': 'zoho'},
+                {'text': 'Show hot leads', 'type': 'pattern', 'label': 'Hot leads', 'platform': 'zoho'},
+                {'text': 'Create a new lead', 'type': 'pattern', 'label': 'Create lead', 'platform': 'zoho'},
+                {'text': 'List all accounts', 'type': 'pattern', 'label': 'All accounts', 'platform': 'zoho'},
+                {'text': 'Show big deals over $10000', 'type': 'pattern', 'label': 'Big deals', 'platform': 'zoho'},
+                {'text': 'Update deal stage', 'type': 'pattern', 'label': 'Update deal', 'platform': 'zoho'},
+            ])
+        
+        # Zoho patterns
+        if any(word in query_lower for word in ['deal', 'opportunity', 'sale']):
+            patterns.extend([
+                {'text': 'Show deals closing this week', 'type': 'pattern', 'label': 'Deals this week', 'platform': 'zoho'},
+                {'text': 'List all deals', 'type': 'pattern', 'label': 'All deals', 'platform': 'zoho'},
+                {'text': 'Show recent deals', 'type': 'pattern', 'label': 'Recent deals', 'platform': 'zoho'},
+                {'text': 'Show won deals', 'type': 'pattern', 'label': 'Won deals', 'platform': 'zoho'},
+                {'text': 'Show deals in negotiation', 'type': 'pattern', 'label': 'Deals in negotiation', 'platform': 'zoho'},
+                {'text': 'Show big deals over $10000', 'type': 'pattern', 'label': 'Big deals', 'platform': 'zoho'},
+            ])
+        
+        if any(word in query_lower for word in ['contact', 'person', 'client']):
+            patterns.extend([
+                {'text': 'List all contacts', 'type': 'pattern', 'label': 'All contacts', 'platform': 'zoho'},
+                {'text': 'Show recent contacts', 'type': 'pattern', 'label': 'Recent contacts', 'platform': 'zoho'},
+                {'text': 'Show contacts from Mumbai', 'type': 'pattern', 'label': 'Contacts by city', 'platform': 'zoho'},
+            ])
+        
+        if any(word in query_lower for word in ['lead', 'prospect']):
+            patterns.extend([
+                {'text': 'List all leads', 'type': 'pattern', 'label': 'All leads', 'platform': 'zoho'},
+                {'text': 'Show hot leads', 'type': 'pattern', 'label': 'Hot leads', 'platform': 'zoho'},
+                {'text': 'Show recent leads', 'type': 'pattern', 'label': 'Recent leads', 'platform': 'zoho'},
+                {'text': 'Create a new lead', 'type': 'pattern', 'label': 'Create lead', 'platform': 'zoho'},
+            ])
+        
+        if any(word in query_lower for word in ['account', 'company', 'organization']):
+            patterns.extend([
+                {'text': 'List all accounts', 'type': 'pattern', 'label': 'All accounts', 'platform': 'zoho'},
+                {'text': 'Show recent accounts', 'type': 'pattern', 'label': 'Recent accounts', 'platform': 'zoho'},
+            ])
+        
+        if any(word in query_lower for word in ['create', 'add', 'new']):
+            if any(word in query_lower for word in ['lead', 'prospect']):
+                patterns.extend([
+                    {'text': 'Create a new lead', 'type': 'pattern', 'label': 'Create lead', 'platform': 'zoho'},
+                ])
+            if any(word in query_lower for word in ['deal', 'opportunity']):
+                patterns.extend([
+                    {'text': 'Create a new deal', 'type': 'pattern', 'label': 'Create deal', 'platform': 'zoho'},
+                ])
+        
+        if any(word in query_lower for word in ['update', 'change', 'modify', 'edit']):
+            if any(word in query_lower for word in ['deal', 'opportunity']):
+                patterns.extend([
+                    {'text': 'Update deal stage', 'type': 'pattern', 'label': 'Update deal', 'platform': 'zoho'},
+                ])
+        
+        # GitHub patterns
+        if any(word in query_lower for word in ['pull', 'pr', 'request', 'merge']):
+            patterns.extend([
+                {'text': 'Show open pull requests', 'type': 'pattern', 'label': 'Open PRs', 'platform': 'github'},
+                {'text': 'List recent pull requests', 'type': 'pattern', 'label': 'Recent PRs', 'platform': 'github'},
+            ])
+        
+        if any(word in query_lower for word in ['issue', 'bug', 'ticket']):
+            patterns.extend([
+                {'text': 'Show open issues', 'type': 'pattern', 'label': 'Open issues', 'platform': 'github'},
+                {'text': 'List recent issues', 'type': 'pattern', 'label': 'Recent issues', 'platform': 'github'},
+            ])
+        
+        if any(word in query_lower for word in ['clone', 'repo', 'repository']):
+            patterns.extend([
+                {'text': 'How do I clone a repository?', 'type': 'pattern', 'label': 'How to clone repo', 'platform': 'github'},
+            ])
+        
+        # Trello patterns - Trigger when "trello" is mentioned
+        if 'trello' in query_lower:
+            # Prioritize example queries first - use full text as label
+            patterns.extend([
+                {'text': 'Add "Fix bug" in Doing Card in your board', 'type': 'pattern', 'label': 'Add "Fix bug" in Doing Card in your board', 'platform': 'trello'},
+                {'text': 'Add "Fix bug" in Doing list in your board', 'type': 'pattern', 'label': 'Add "Fix bug" in Doing list in your board', 'platform': 'trello'},
+                {'text': 'Add "Review PR" in To Do list in your board', 'type': 'pattern', 'label': 'Add "Review PR" in To Do list in your board', 'platform': 'trello'},
+                {'text': 'Add "New task" in To Do Card in your board', 'type': 'pattern', 'label': 'Add "New task" in To Do Card in your board', 'platform': 'trello'},
+                {'text': 'Create card "Update docs" in Backlog in your board', 'type': 'pattern', 'label': 'Create card "Update docs" in Backlog in your board', 'platform': 'trello'},
+                {'text': 'Add "Test feature" to In Progress list in your board', 'type': 'pattern', 'label': 'Add "Test feature" to In Progress list in your board', 'platform': 'trello'},
+                {'text': 'Delete "Fix bug" from Doing list in your board', 'type': 'pattern', 'label': 'Delete "Fix bug" from Doing list in your board', 'platform': 'trello'},
+                {'text': 'Delete "Fix bug" from Doing Card in your board', 'type': 'pattern', 'label': 'Delete "Fix bug" from Doing Card in your board', 'platform': 'trello'},
+                {'text': 'Remove "Old task" from To Do list in your board', 'type': 'pattern', 'label': 'Remove "Old task" from To Do list in your board', 'platform': 'trello'},
+                {'text': 'Remove "Fix bug" from Doing Card in your board', 'type': 'pattern', 'label': 'Remove "Fix bug" from Doing Card in your board', 'platform': 'trello'},
+                {'text': 'Delete "Review PR" from To Do list in your board', 'type': 'pattern', 'label': 'Delete "Review PR" from To Do list in your board', 'platform': 'trello'},
+                {'text': 'Show my boards', 'type': 'pattern', 'label': 'Show my boards', 'platform': 'trello'},
+                {'text': 'List all boards', 'type': 'pattern', 'label': 'List all boards', 'platform': 'trello'},
+                {'text': 'Show cards in To Do', 'type': 'pattern', 'label': 'Show cards in To Do', 'platform': 'trello'},
+                {'text': 'Show cards in In Progress', 'type': 'pattern', 'label': 'Show cards in In Progress', 'platform': 'trello'},
+                {'text': 'Show cards in Done', 'type': 'pattern', 'label': 'Show cards in Done', 'platform': 'trello'},
+                {'text': 'Show cards in Backlog', 'type': 'pattern', 'label': 'Show cards in Backlog', 'platform': 'trello'},
+                {'text': 'List all cards', 'type': 'pattern', 'label': 'List all cards', 'platform': 'trello'},
+                {'text': 'Show cards on board', 'type': 'pattern', 'label': 'Show cards on board', 'platform': 'trello'},
+                {'text': 'Show lists in board', 'type': 'pattern', 'label': 'Show lists in board', 'platform': 'trello'},
+                {'text': 'Get all lists', 'type': 'pattern', 'label': 'Get all lists', 'platform': 'trello'},
+                {'text': 'Get lists from board', 'type': 'pattern', 'label': 'Get lists from board', 'platform': 'trello'},
+                {'text': 'Show cards with due date', 'type': 'pattern', 'label': 'Show cards with due date', 'platform': 'trello'},
+                {'text': 'Show cards assigned to me', 'type': 'pattern', 'label': 'Show cards assigned to me', 'platform': 'trello'},
+                {'text': 'Show overdue cards', 'type': 'pattern', 'label': 'Show overdue cards', 'platform': 'trello'},
+            ])
+        
+        # Trello patterns - Card/task related (only if "trello" not already matched)
+        if 'trello' not in query_lower:
+            if any(word in query_lower for word in ['card', 'task', 'todo']):
+                patterns.extend([
+                    {'text': 'Show cards in To Do', 'type': 'pattern', 'label': 'Show cards in To Do', 'platform': 'trello'},
+                    {'text': 'List all cards', 'type': 'pattern', 'label': 'List all cards', 'platform': 'trello'},
+                    {'text': 'Show cards in In Progress', 'type': 'pattern', 'label': 'Show cards in In Progress', 'platform': 'trello'},
+                    {'text': 'Show cards in Done', 'type': 'pattern', 'label': 'Show cards in Done', 'platform': 'trello'},
+                ])
+            
+            if any(word in query_lower for word in ['create', 'add', 'new']):
+                if any(word in query_lower for word in ['card', 'task']):
+                    patterns.extend([
+                        {'text': 'Add "Fix bug" in Doing Card in your board', 'type': 'pattern', 'label': 'Add "Fix bug" in Doing Card in your board', 'platform': 'trello'},
+                        {'text': 'Add "Review PR" in To Do list in your board', 'type': 'pattern', 'label': 'Add "Review PR" in To Do list in your board', 'platform': 'trello'},
+                        {'text': 'Create card "Update docs" in Backlog in your board', 'type': 'pattern', 'label': 'Create card "Update docs" in Backlog in your board', 'platform': 'trello'},
+                    ])
+            
+            if any(word in query_lower for word in ['delete', 'remove']):
+                if any(word in query_lower for word in ['card', 'task']):
+                    patterns.extend([
+                        {'text': 'Delete "Fix bug" from Doing list in your board', 'type': 'pattern', 'label': 'Delete "Fix bug" from Doing list in your board', 'platform': 'trello'},
+                        {'text': 'Delete "Fix bug" from Doing Card in your board', 'type': 'pattern', 'label': 'Delete "Fix bug" from Doing Card in your board', 'platform': 'trello'},
+                        {'text': 'Remove "Old task" from To Do list in your board', 'type': 'pattern', 'label': 'Remove "Old task" from To Do list in your board', 'platform': 'trello'},
+                        {'text': 'Delete "Review PR" from To Do list in your board', 'type': 'pattern', 'label': 'Delete "Review PR" from To Do list in your board', 'platform': 'trello'},
+                    ])
+            
+            if any(word in query_lower for word in ['board', 'project']):
+                patterns.extend([
+                    {'text': 'Show my boards', 'type': 'pattern', 'label': 'Show my boards', 'platform': 'trello'},
+                    {'text': 'List all boards', 'type': 'pattern', 'label': 'List all boards', 'platform': 'trello'},
+                ])
+            
+            if any(word in query_lower for word in ['list', 'column']):
+                patterns.extend([
+                    {'text': 'Show lists in board', 'type': 'pattern', 'label': 'Show lists in board', 'platform': 'trello'},
+                    {'text': 'Get all lists', 'type': 'pattern', 'label': 'Get all lists', 'platform': 'trello'},
+                ])
+        
+        # Salesforce patterns
+        if any(word in query_lower for word in ['lead', 'opportunity', 'account']):
+            patterns.extend([
+                {'text': 'List all leads', 'type': 'pattern', 'label': 'All leads', 'platform': 'salesforce'},
+                {'text': 'Show open opportunities', 'type': 'pattern', 'label': 'Open opportunities', 'platform': 'salesforce'},
+            ])
+        
+        # General patterns
+        if any(word in query_lower for word in ['how', 'what', 'when', 'where']):
+            patterns.extend([
+                {'text': 'How do I handle refunds?', 'type': 'pattern', 'label': 'How to handle refunds', 'platform': 'stripe'},
+                {'text': 'How do I set up webhooks?', 'type': 'pattern', 'label': 'How to set up webhooks', 'platform': 'stripe'},
+            ])
+        
+        return patterns[:limit]
 
 
 
