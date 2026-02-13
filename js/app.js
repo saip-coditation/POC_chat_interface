@@ -79,6 +79,10 @@ const App = {
       queryInput.addEventListener('input', () => {
         const submitBtn = Utils.$('#query-submit');
         submitBtn.disabled = !queryInput.value.trim();
+        // Reset query history cycling when user types (not when we set value from history buttons)
+        if (!App.isCyclingHistory) {
+          App.queryHistoryIndex = -1;
+        }
         // Trigger autocomplete only if not selecting from dropdown
         if (!App.autocompleteState.isSelecting) {
           App.handleAutocomplete(queryInput.value);
@@ -90,9 +94,9 @@ const App = {
         }
       });
       
-      // Handle keyboard navigation
+      // Handle keyboard navigation (autocomplete + query history Up/Down)
       queryInput.addEventListener('keydown', (e) => {
-        App.handleAutocompleteKeydown(e);
+        App.handleQueryInputKeydown(e);
       });
       
       // Hide autocomplete on blur (with delay to allow clicks)
@@ -102,6 +106,47 @@ const App = {
         }, 200);
       });
     }
+
+    // Query history Up/Down buttons (delegated so they work when query page is shown after init)
+    document.addEventListener('click', (e) => {
+      const upBtn = e.target.closest('#query-history-up');
+      const downBtn = e.target.closest('#query-history-down');
+      if (upBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        App.hideAutocomplete();
+        if (App.queryHistory.length === 0) {
+          App.showToast('No previous queries yet. Submit a query first.', 'info');
+          return;
+        }
+        App.isCyclingHistory = true;
+        if (App.cycleQueryHistory('up')) {
+          const input = Utils.$('#query-input');
+          if (input) {
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.focus();
+          }
+        }
+        setTimeout(() => { App.isCyclingHistory = false; }, 0);
+      } else if (downBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        App.hideAutocomplete();
+        if (App.queryHistory.length === 0) {
+          App.showToast('No previous queries yet. Submit a query first.', 'info');
+          return;
+        }
+        App.isCyclingHistory = true;
+        if (App.cycleQueryHistory('down')) {
+          const input = Utils.$('#query-input');
+          if (input) {
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.focus();
+          }
+        }
+        setTimeout(() => { App.isCyclingHistory = false; }, 0);
+      }
+    });
 
     // Example queries
     Utils.$$('.example-query').forEach(btn => {
@@ -1070,6 +1115,15 @@ const App = {
     // Hide autocomplete dropdown
     App.hideAutocomplete();
 
+    // Add to query history (avoid duplicate of last, limit size)
+    if (App.queryHistory[App.queryHistory.length - 1] !== query) {
+      App.queryHistory.push(query);
+      if (App.queryHistory.length > App.queryHistoryMax) {
+        App.queryHistory.shift();
+      }
+    }
+    App.queryHistoryIndex = -1;
+
     // Add user message
     App.addChatMessage(query, 'user');
 
@@ -1829,6 +1883,14 @@ const App = {
   },
 
   /**
+   * Query history for Up/Down arrow cycling (previous submitted queries)
+   */
+  queryHistory: [],
+  queryHistoryIndex: -1,
+  queryHistoryMax: 50,
+  isCyclingHistory: false,  // prevent input handler from resetting index when we set value from history
+
+  /**
    * Handle autocomplete input
    */
   async handleAutocomplete(queryText) {
@@ -1925,6 +1987,58 @@ const App = {
   /**
    * Handle keyboard navigation in autocomplete
    */
+  /**
+   * Cycle query history: direction 'up' = older, 'down' = newer. Returns true if value changed.
+   */
+  cycleQueryHistory(direction) {
+    if (App.queryHistory.length === 0) return false;
+    const input = Utils.$('#query-input');
+    if (!input) return false;
+
+    if (direction === 'up') {
+      if (App.queryHistoryIndex === -1) {
+        App.queryHistoryIndex = App.queryHistory.length - 1;
+      } else if (App.queryHistoryIndex > 0) {
+        App.queryHistoryIndex--;
+      }
+      input.value = App.queryHistory[App.queryHistoryIndex];
+      return true;
+    }
+    // down
+    if (App.queryHistoryIndex === -1) return false;
+    App.queryHistoryIndex++;
+    if (App.queryHistoryIndex >= App.queryHistory.length) {
+      App.queryHistoryIndex = -1;
+      input.value = '';
+    } else {
+      input.value = App.queryHistory[App.queryHistoryIndex];
+    }
+    return true;
+  },
+
+  /**
+   * Handle keydown on query input: autocomplete when open, else query history Up/Down
+   */
+  handleQueryInputKeydown(e) {
+    const dropdown = Utils.$('#autocomplete-dropdown');
+    const autocompleteOpen = dropdown && !dropdown.classList.contains('hidden') && App.autocompleteState.suggestions.length > 0;
+
+    if (autocompleteOpen) {
+      App.handleAutocompleteKeydown(e);
+      return;
+    }
+
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      App.isCyclingHistory = true;
+      if (App.cycleQueryHistory(e.key === 'ArrowUp' ? 'up' : 'down')) {
+        const input = Utils.$('#query-input');
+        if (input) input.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      setTimeout(() => { App.isCyclingHistory = false; }, 0);
+    }
+  },
+
   handleAutocompleteKeydown(e) {
     const dropdown = Utils.$('#autocomplete-dropdown');
     if (!dropdown || dropdown.classList.contains('hidden')) {
@@ -1982,10 +2096,11 @@ const App = {
     if (input) {
       // Set flag to prevent autocomplete from showing again
       App.autocompleteState.isSelecting = true;
-      
+      App.queryHistoryIndex = -1;
+
       // Hide dropdown first
       App.hideAutocomplete();
-      
+
       // Set the value
       input.value = text;
       

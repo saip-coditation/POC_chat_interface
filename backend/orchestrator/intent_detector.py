@@ -207,7 +207,7 @@ class IntentDetector:
         knowledge_patterns = [
             r'when\s+(?:should)\s+(?:i|we)\s+(.+)', # Added specific pattern for "When should I..."
             r'what\s+(?:is|are|does|do)\s+(?:the\s+)?(.+)',
-            r'how\s+(?:do|can|should)\s+(?:i|we)\s+(.+)',
+            r'how\s+(?:do|can|should|to)\s+(?:i|we)?\s*(.+)',  # "how to clone", "how do i clone"
             r'tell\s+me\s+about\s+(.+)',
             r'explain\s+(.+)',
             r'(.+)\s+policy',
@@ -220,14 +220,15 @@ class IntentDetector:
         is_knowledge = any(re.search(p, query_lower) for p in knowledge_patterns)
         
         if is_knowledge and "revenue" not in query_lower and "invoice" not in query_lower:
-            # Special check: "how to create" or "how can I create" questions are knowledge queries
+            # Special check: "how to create/push/add/clone" questions are knowledge queries
             # They're asking for instructions/guidance, not to perform the action
             is_how_to_create = re.search(r'how\s+(can\s+i|do\s+i|to)\s+create', query_lower)
             is_how_to_push = re.search(r'how\s+(can\s+i|do\s+i|to)\s+push', query_lower)
             is_how_to_add = re.search(r'how\s+(can\s+i|do\s+i|to)\s+add', query_lower)
+            is_how_to_clone = re.search(r'how\s+(can\s+i|do\s+i|to)\s+clone', query_lower) or re.search(r'how\s+to\s+clone|clone\s+(a\s+)?(repo|repository)', query_lower)
             
-            # If it's a "how to create/add/push" question, it's a knowledge query
-            if is_how_to_create or is_how_to_push or is_how_to_add:
+            # If it's a "how to create/add/push/clone" question, it's a knowledge query
+            if is_how_to_create or is_how_to_push or is_how_to_add or is_how_to_clone:
                 logger.info("[INTENT] Matched Knowledge Query - 'how to create/add/push' question")
                 return DetectedIntent(
                     intent_type=IntentType.KNOWLEDGE_QUERY,
@@ -368,7 +369,7 @@ class IntentDetector:
         query_lower = query.lower()
         
         # PRIORITY: Check for knowledge questions FIRST (before platform fallbacks)
-        # "How to handle/setup/configure/manage/create" questions are always knowledge queries
+        # "How to handle/setup/configure/manage/create/clone" questions are always knowledge queries
         knowledge_action_patterns = [
             r'how\s+(to|do\s+i|can\s+i)\s+handle',
             r'how\s+(to|do\s+i|can\s+i)\s+set\s+up',
@@ -376,6 +377,9 @@ class IntentDetector:
             r'how\s+(to|do\s+i|can\s+i)\s+configure',
             r'how\s+(to|do\s+i|can\s+i)\s+manage',
             r'how\s+(to|do\s+i|can\s+i)\s+create',
+            r'how\s+(to|do\s+i|can\s+i)\s+clone',
+            r'clone\s+(a\s+)?(repo|repository)',
+            r'how\s+to\s+clone',
         ]
         
         for pattern in knowledge_action_patterns:
@@ -474,8 +478,8 @@ class IntentDetector:
             if re.search(pattern, query_lower):
                 logger.info(f"[INTENT] Detected informational question: {query}")
                 
-                # "How to create/add/push/handle/manage/setup" questions are always knowledge queries
-                if re.search(r'how\s+(can\s+i|do\s+i|to)\s+(create|add|push|handle|set\s+up|setup|configure|manage)', query_lower):
+                # "How to create/add/push/clone/handle/manage/setup" questions are always knowledge queries
+                if re.search(r'how\s+(can\s+i|do\s+i|to)\s+(create|add|push|clone|handle|set\s+up|setup|configure|manage)', query_lower) or re.search(r'how\s+to\s+clone|clone\s+(a\s+)?(repo|repository)', query_lower):
                     logger.info("[INTENT] 'How to create/add/push/handle/manage/setup' detected - knowledge query")
                     # Detect platform from context
                     platform = "rag"  # Default

@@ -172,6 +172,17 @@ class QueryOrchestrator:
                 intent.tool_id = "list_repos"
                 intent.platform = "github"
                 intent.confidence = 1.0
+
+            # [SAFETY PATCH] "How to clone (github)" should be knowledge/RAG, not list_repos
+            q = query.lower()
+            if intent.platform == "github" and intent.tool_id == "list_repos":
+                if ("how" in q and "clone" in q) or ("clone" in q and ("repo" in q or "repository" in q or "github" in q)):
+                    from orchestrator.intent_detector import IntentType
+                    context.log("[SAFETY] Correcting: 'how to clone' / clone question -> KNOWLEDGE_QUERY (RAG)")
+                    intent.intent_type = IntentType.KNOWLEDGE_QUERY
+                    intent.tool_id = "knowledge_search"
+                    intent.platform = "rag"
+                    intent.confidence = 0.95
             
             # Use corrected query if available (typo correction from IntentDetector)
             corrected_query = intent.matched_query if intent.matched_query else query
