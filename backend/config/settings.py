@@ -3,6 +3,7 @@ Django settings for DataBridge AI backend.
 """
 
 import os
+import dj_database_url
 from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
