@@ -114,7 +114,15 @@ class QueryAutocompleteView(APIView):
         # Increase default limit for better suggestions
         limit = int(request.query_params.get('limit', 15))
         
-        if not query_text or len(query_text) < 2:
+        # Always return pattern suggestions, even for empty queries on fresh databases
+        if not query_text:
+            # Return default popular patterns
+            return Response({
+                'suggestions': self._get_common_patterns('', limit),
+                'query': ''
+            })
+        
+        if len(query_text) < 2:
             return Response({'suggestions': []})
         
         suggestions = []

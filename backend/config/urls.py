@@ -14,6 +14,11 @@ urlpatterns = [
     path('api/platforms/', include('apps.platforms.urls')),
     path('api/queries/', include('apps.queries.urls')),
     
+    # Health check for Render debugging
+    path('api/health/', include([
+        path('', lambda request: __import__('apps.queries.health_check').queries.health_check.HealthCheckView.as_view()(request))
+    ])),
+    
     # Serve Frontend
     path('', TemplateView.as_view(template_name='index.html'), name='home'),
 ]
