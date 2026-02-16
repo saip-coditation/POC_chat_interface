@@ -113,7 +113,7 @@ USE_TZ = True
 
 # Static files
 STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR.parent / 'staticfiles_build'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [
     BASE_DIR.parent / 'css',
     BASE_DIR.parent / 'js',
