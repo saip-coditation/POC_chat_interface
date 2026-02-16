@@ -306,6 +306,39 @@ Respond with valid JSON only."""
         import logging
         logging.getLogger(__name__).info(f"[GENERATE_QUERY_PARAMS] Parsed result for '{query}': {parsed}")
         
+        # POST-PROCESSING: Clean up Trello parameters (LLM often ignores prompt instructions)
+        if platform == 'trello' and 'filters' in parsed:
+            filters = parsed['filters']
+            
+            # Clean board_name
+            if 'board_name' in filters and filters['board_name']:
+                board_name = str(filters['board_name'])
+                # Remove platform mentions
+                board_name = board_name.replace(' in Trello', '').replace(' on Trello', '')
+                board_name = board_name.replace(' in trello', '').replace(' on trello', '')
+                board_name = board_name.replace('in Trello', '').replace('on Trello', '')
+                board_name = board_name.replace(' board', '').replace(' Board', '')
+                filters['board_name'] = board_name.strip()
+            
+            # Clean list_name
+            if 'list_name' in filters and filters['list_name']:
+                list_name = str(filters['list_name'])
+                # Remove platform mentions
+                list_name = list_name.replace(' in Trello', '').replace(' on Trello', '')
+                list_name = list_name.replace(' in trello', '').replace(' on trello', '')
+                list_name = list_name.replace('in Trello', '').replace('on Trello', '')
+                list_name = list_name.replace(' list', '').replace(' List', '')
+                filters['list_name'] = list_name.strip()
+            
+            # Clean card name
+            if 'name' in filters and filters['name']:
+                card_name = str(filters['name'])
+                card_name = card_name.replace(' in Trello', '').replace(' on Trello', '')
+                card_name = card_name.replace(' card', '').replace(' Card', '')
+                filters['name'] = card_name.strip()
+            
+            logging.getLogger(__name__).info(f"[TRELLO_CLEANUP] Cleaned filters: {filters}")
+        
         return parsed
         
     except json.JSONDecodeError as e:
