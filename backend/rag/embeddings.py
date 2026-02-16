@@ -38,7 +38,19 @@ class GeminiEmbeddings:
             model: Embedding model to use. Defaults to text-embedding-3-small.
         """
         self.api_key = api_key or getattr(settings, 'OPENAI_API_KEY', os.getenv("OPENAI_API_KEY"))
-        self.model = model or self.DEFAULT_MODEL
+        
+        # Determine if using OpenRouter
+        self.is_openrouter = self.api_key and self.api_key.startswith("sk-or-")
+        
+        # Select appropriate model
+        if model:
+            self.model = model
+        elif self.is_openrouter:
+            # OpenRouter uses different embedding models
+            self.model = "openai/text-embedding-3-small"
+        else:
+            self.model = self.DEFAULT_MODEL
+            
         self._client = None
         
         if not self.api_key:
@@ -49,7 +61,7 @@ class GeminiEmbeddings:
         if self._client is None:
             # Handle OpenRouter config if present
             base_url = None
-            if self.api_key and self.api_key.startswith("sk-or-"):
+            if self.is_openrouter:
                 base_url = "https://openrouter.ai/api/v1"
                 
             self._client = OpenAI(
@@ -111,6 +123,9 @@ class GeminiEmbeddings:
                     
                 except Exception as e:
                     error_str = str(e).lower()
+                    # Log the full error for debugging
+                    logger.error(f"Embedding batch failed ({attempt+1}/{max_retries}): {type(e).__name__}: {e}")
+                    
                     if "429" in error_str or "quota" in error_str:
                         if attempt < max_retries - 1:
                             delay = (base_delay * (2 ** attempt)) + random.uniform(0, 1)
@@ -118,7 +133,6 @@ class GeminiEmbeddings:
                             time.sleep(delay)
                             continue
                     
-                    logger.error(f"Embedding batch failed ({attempt+1}/{max_retries}): {e}")
                     if attempt == max_retries - 1:
                         raise e
                         
