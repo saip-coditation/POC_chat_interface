@@ -186,9 +186,12 @@ RULES:
 1. "My python repos" -> filters: {language: "python"}.
 2. "Active repos" -> filters: {sort: "updated"}.
 3. "Open bugs" -> action: "list_issues", filters: {state: "open", labels: "bug"}.
-4. Extract repo names like "facebook/react" or "frontend".
+4. Extract repo names like "facebook/react" or "frontend" or "POC_chat_interface".
 5. "how many repos" or "num of repos" -> action: "list_repos", filters: {}.
-6. Default limit: 20. If "all", limit: 100.
+6. "show commits" or "list commits" or "recent commits" -> action: "list_commits", filters: {repo_name: "extracted_repo_name"}.
+7. "commits for X" or "commits in X" -> action: "list_commits", filters: {repo_name: "X"}.
+8. Extract repo name from queries like "commits for POC_chat_interface" -> repo_name: "POC_chat_interface".
+9. Default limit: 20. If "all", limit: 100.
 
 Respond with valid JSON only."""
         elif platform == 'zoho':
