@@ -10,8 +10,9 @@ import django
 import sys
 import logging
 
-# Setup Django environment
-sys.path.append('/home/admin1/Desktop/Chat_Interface/backend')
+# Setup Django environment - use dynamic path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, current_dir)
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 
