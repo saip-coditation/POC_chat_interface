@@ -146,7 +146,11 @@ class StripeConnector(BaseConnector):
         # Fetch paid invoices
         invoices = stripe.Invoice.list(status="paid", limit=100)
         
-        product_filter = params.get("product_name", "").lower()
+        product_filter = params.get("product_name", "").lower().strip()
+        logger.info(f"[STRIPE REVENUE] Params received: {params}")
+        logger.info(f"[STRIPE REVENUE] Product filter: '{product_filter}'")
+        logger.info(f"[STRIPE REVENUE] Total paid invoices: {len(invoices.data)}")
+        
         total_revenue = 0
         matched_invoices = []
         
@@ -154,9 +158,32 @@ class StripeConnector(BaseConnector):
             invoice_amount = 0
             
             for line_item in invoice.lines.data:
+                # Get description and product info
                 description = (line_item.description or "").lower()
                 
-                if not product_filter or product_filter in description:
+                # Try to get product name from price object
+                product_name = ""
+                if hasattr(line_item, 'price') and line_item.price:
+                    if hasattr(line_item.price, 'product'):
+                        try:
+                            product_obj = stripe.Product.retrieve(line_item.price.product)
+                            product_name = (product_obj.name or "").lower()
+                        except:
+                            pass
+                
+                # Check if product matches filter
+                matches = False
+                if not product_filter:
+                    # No filter, include all
+                    matches = True
+                else:
+                    # Check description, product name, or metadata
+                    if (product_filter in description or 
+                        product_filter in product_name):
+                        matches = True
+                        logger.info(f"[STRIPE REVENUE] Match found! Description: '{description}', Product: '{product_name}', Amount: {line_item.amount/100}")
+                
+                if matches:
                     invoice_amount += line_item.amount
             
             if invoice_amount > 0:
@@ -167,13 +194,16 @@ class StripeConnector(BaseConnector):
                     "customer": invoice.customer
                 })
         
+        logger.info(f"[STRIPE REVENUE] Total revenue: ${total_revenue/100}, Matched invoices: {len(matched_invoices)}")
+        
         return ConnectorResult(
             success=True,
             data={
                 "total_revenue": total_revenue / 100,
                 "currency": "usd",
                 "invoice_count": len(matched_invoices),
-                "invoices": matched_invoices[:10]  # Top 10 for reference
+                "invoices": matched_invoices[:10],  # Top 10 for reference
+                "filter_applied": product_filter if product_filter else "none"
             }
         )
     
