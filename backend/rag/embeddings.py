@@ -66,7 +66,9 @@ class GeminiEmbeddings:
                 
             self._client = OpenAI(
                 api_key=self.api_key,
-                base_url=base_url
+                base_url=base_url,
+                timeout=120.0,  # Increased from default 60s for Render's network
+                max_retries=3    # Increased from default 2
             )
         return self._client
     

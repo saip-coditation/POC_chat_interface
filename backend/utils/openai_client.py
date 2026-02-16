@@ -30,11 +30,17 @@ def get_client():
             # OpenRouter key
             client = OpenAI(
                 api_key=api_key,
-                base_url="https://openrouter.ai/api/v1"
+                base_url="https://openrouter.ai/api/v1",
+                timeout=120.0,  # Increased for Render's network
+                max_retries=3
             )
         else:
             # Native OpenAI key (sk-proj- or sk-)
-            client = OpenAI(api_key=api_key)
+            client = OpenAI(
+                api_key=api_key,
+                timeout=120.0,
+                max_retries=3
+            )
     return client
 
 
