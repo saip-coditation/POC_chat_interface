@@ -477,14 +477,32 @@ class WorkflowExecutor:
             # Get refresh token from credentials
             refresh_token = credentials.get('api_key', '')  # Stored as 'api_key' in platform connection
             
+            # Extract client credentials if present (from stored metadata)
+            client_credentials = None
+            if credentials.get('client_id') and credentials.get('client_secret'):
+                client_credentials = {
+                    'client_id': credentials.get('client_id'),
+                    'client_secret': credentials.get('client_secret')
+                }
+            
             if tool_name == "list_contacts":
-                result = zoho_client.fetch_contacts(refresh_token, filters=params)
+                result = zoho_client.fetch_contacts(refresh_token, filters=params, client_credentials=client_credentials)
             elif tool_name == "list_deals":
-                result = zoho_client.fetch_deals(refresh_token, filters=params)
+                result = zoho_client.fetch_deals(refresh_token, filters=params, client_credentials=client_credentials)
             elif tool_name == "list_leads":
-                result = zoho_client.fetch_leads(refresh_token, filters=params)
+                result = zoho_client.fetch_leads(refresh_token, filters=params, client_credentials=client_credentials)
             elif tool_name == "list_accounts":
-                result = zoho_client.fetch_accounts(refresh_token, filters=params)
+                result = zoho_client.fetch_accounts(refresh_token, filters=params, client_credentials=client_credentials)
+            elif tool_name == "create_record":
+                 # Extract module and data from params
+                 module = params.get('module', 'leads')
+                 data = params.get('data', {})
+                 result = zoho_client.create_record(refresh_token, module, data, client_credentials=client_credentials)
+            elif tool_name == "update_record":
+                 module = params.get('module', 'leads')
+                 record_id = params.get('record_id')
+                 data = params.get('data', {})
+                 result = zoho_client.update_record(refresh_token, module, record_id, data, client_credentials=client_credentials)
             else:
                 raise ValueError(f"Unknown Zoho tool: {tool_name}")
             
