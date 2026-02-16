@@ -3,7 +3,6 @@ Django settings for DataBridge AI backend.
 """
 
 import os
-import dj_database_url
 from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
@@ -18,7 +17,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-change-me-in-production')
 DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,.vercel.app').split(',')
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 # Application definition
 INSTALLED_APPS = [
@@ -79,23 +78,12 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 # Database
-# https://docs.djangoproject.com/en/5.0/ref/settings/#databases
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
-
-# PostgreSQL Database Configuration (Production)
-db_url = os.environ.get('DATABASE_URL') or os.environ.get('POSTGRES_URL')
-if db_url:
-    DATABASES['default'] = dj_database_url.config(
-        default=db_url,
-        conn_max_age=600,
-        conn_health_checks=True,
-    )
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [

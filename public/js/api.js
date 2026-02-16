@@ -4,10 +4,8 @@
  */
 
 const API = {
-    // Base API URL - auto-detect environment
-    baseUrl: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-        ? 'http://localhost:8000/api'  // Local development
-        : '/api',  // Production (Vercel) - use relative path
+    // Base API URL - pointing to Django backend
+    baseUrl: 'http://localhost:8000/api',
 
     // JWT tokens (stored in memory for security)
     accessToken: null,

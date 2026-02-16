@@ -1239,6 +1239,11 @@ Ask me specific questions about Trello workflows!"""
                     embeddings = get_embeddings()
                     query_vec = embeddings.embed_for_query(query)
                     
+                    # Check if embedding generation succeeded
+                    if not query_vec or len(query_vec) == 0:
+                        logger.warning(f"Failed to generate embedding for query: {query}")
+                        raise Exception("Embedding generation failed")
+                    
                     # 2. Search Chroma
                     from rag.chroma_client import get_chroma_client
                     chroma = get_chroma_client()
@@ -1250,7 +1255,7 @@ Ask me specific questions about Trello workflows!"""
                         include=["documents", "metadatas", "distances"]
                     )
                     
-                    if results['ids'] and results['ids'][0]:
+                    if results.get('ids') and results['ids'] and len(results['ids'][0]) > 0:
                         # Found relevant documents - synthesize answer
                         context_text = ""
                         sources = set()
@@ -1360,6 +1365,11 @@ CONTENT RULES:
             embeddings = get_embeddings()
             query_vec = embeddings.embed_for_query(query)
             
+            # Check if embedding generation succeeded
+            if not query_vec or len(query_vec) == 0:
+                logger.warning(f"Failed to generate embedding for query: {query}")
+                raise Exception("Embedding generation failed")
+            
             # 2. Search Chroma
             from rag.chroma_client import get_chroma_client
             chroma = get_chroma_client()
@@ -1371,7 +1381,7 @@ CONTENT RULES:
                 include=["documents", "metadatas", "distances"]
             )
             
-            if not results['ids'] or not results['ids'][0]:
+            if not results.get('ids') or not results['ids'] or len(results['ids'][0]) == 0:
                 # Check if query mentions a platform mismatch
                 query_lower = query.lower()
                 platform_hint = ""

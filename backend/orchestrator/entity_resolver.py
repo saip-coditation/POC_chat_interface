@@ -266,7 +266,7 @@ class EntityResolver:
                 where=where_filter if where_filter else None
             )
             
-            if not results['ids'][0]:
+            if not results.get('ids') or not results['ids'] or len(results['ids'][0]) == 0:
                 return None
             
             # Get best match

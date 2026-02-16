@@ -324,7 +324,7 @@ class IntentDetector:
                 n_results=n_results
             )
             
-            if results['ids'][0]:
+            if results.get('ids') and results['ids'] and len(results['ids'][0]) > 0:
                 # Calculate confidence from distance
                 distances = results['distances'][0] if 'distances' in results else []
                 best_distance = distances[0] if distances else 1.0
