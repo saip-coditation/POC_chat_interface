@@ -21,6 +21,7 @@ ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 # Application definition
 INSTALLED_APPS = [
+    'whitenoise.runserver_nostatic',  # Must be before staticfiles to bypass checks locally
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -101,13 +102,23 @@ USE_I18N = True
 USE_TZ = True
 
 # Static files
-STATIC_URL = '/'  # Serve static files from root to match hardcoded paths in index.html
+STATIC_URL = '/static/'  # Standard Django static path to avoid conflicts
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = [
-    BASE_DIR / 'static_src/css',
-    BASE_DIR / 'static_src/js',
-    BASE_DIR / 'static_src/public',
-]
+
+# Check if running in Docker (static_src exists) or Local (parent dir)
+if (BASE_DIR / 'static_src').exists():
+    STATICFILES_DIRS = [
+        BASE_DIR / 'static_src/css',
+        BASE_DIR / 'static_src/js',
+        BASE_DIR / 'static_src/public',
+    ]
+else:
+    # Local development fallback
+    STATICFILES_DIRS = [
+        BASE_DIR.parent / 'css',
+        BASE_DIR.parent / 'js',
+        BASE_DIR.parent / 'public',
+    ]
 # Workaround to allow serving from root subfolders as static
 # Note: In production, these should be handled by a proper static server config.
 
