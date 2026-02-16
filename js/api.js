@@ -4,8 +4,10 @@
  */
 
 const API = {
-    // Base API URL - pointing to Django backend
-    baseUrl: 'http://localhost:8000/api',
+    // Base API URL - automatically use current origin for production or localhost for dev
+    baseUrl: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? 'http://localhost:8000/api'
+        : `${window.location.origin}/api`,
 
     // JWT tokens (stored in memory for security)
     accessToken: null,
