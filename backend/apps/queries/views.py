@@ -524,7 +524,7 @@ class ProcessQueryView(APIView):
         try:
             QueryLog.objects.create(
                 user=user,
-                platform=result.intent.get('platform') if result.intent else 'unknown',
+                platform=(result.intent.get('platform') or 'unknown') if result.intent else 'unknown',
                 query_text=query,
                 response_summary=result.summary,
                 was_successful=result.success,

@@ -1511,7 +1511,7 @@ CONTENT RULES:
             return OrchestratorResult(
                 success=False,
                 error=f"Error processing knowledge query: {str(e)}",
-                intent={"intent_type": "KNOWLEDGE_QUERY"}
+                intent={"intent_type": "KNOWLEDGE_QUERY", "platform": "rag"}
             )
 
 
