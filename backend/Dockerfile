@@ -28,4 +28,5 @@ COPY index.html /app/templates/
 EXPOSE 8000
 
 # Run migrations, collect static files, and start server
-CMD ["sh", "-c", "python manage.py collectstatic --noinput && python manage.py migrate && python manage.py runserver 0.0.0.0:8000"]
+# Run migrations, seed data (for Render ephemeral DB), collect static files, and start server
+CMD ["sh", "-c", "python manage.py collectstatic --noinput && python manage.py migrate && python scripts/seed_render_data.py && python manage.py runserver 0.0.0.0:8000"]
