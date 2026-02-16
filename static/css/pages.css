@@ -120,8 +120,15 @@
 
 
 @keyframes float {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    50% { transform: translate(30px, -30px) scale(1.1); }
+
+    0%,
+    100% {
+        transform: translate(0, 0) scale(1);
+    }
+
+    50% {
+        transform: translate(30px, -30px) scale(1.1);
+    }
 }
 
 .hero {
@@ -161,8 +168,13 @@
 
 
 @keyframes shine {
-    0% { left: -100%; }
-    100% { left: 100%; }
+    0% {
+        left: -100%;
+    }
+
+    100% {
+        left: 100%;
+    }
 }
 
 .hero__title {
@@ -750,14 +762,17 @@
 
 
 @keyframes pulse {
-    0%, 100% {
-        box-shadow: 
+
+    0%,
+    100% {
+        box-shadow:
             0 12px 40px rgba(59, 130, 246, 0.4),
             0 6px 20px rgba(59, 130, 246, 0.3),
             0 0 0 8px rgba(59, 130, 246, 0.15);
     }
+
     50% {
-        box-shadow: 
+        box-shadow:
             0 12px 40px rgba(59, 130, 246, 0.5),
             0 6px 20px rgba(59, 130, 246, 0.4),
             0 0 0 12px rgba(59, 130, 246, 0.2);
@@ -1051,8 +1066,8 @@
 }
 
 /* Message grouping - add subtle separator between conversation turns */
-.chat-message + .chat-message--user,
-.chat-message--user + .chat-message:not(.chat-message--user) {
+.chat-message+.chat-message--user,
+.chat-message--user+.chat-message:not(.chat-message--user) {
     margin-top: var(--space-8);
 }
 
@@ -1650,7 +1665,9 @@
     background: rgba(129, 140, 248, 0.6);
 }
 
-/* Responsive */
+/* Responsive - Mobile First Approach */
+
+/* Tablets and below (768px) */
 @media (max-width: 768px) {
     .hero__title {
         font-size: 2rem;
@@ -1679,7 +1696,178 @@
     }
 
     .nav__menu {
+        gap: var(--space-1);
+    }
+
+    .nav__link {
+        padding: var(--space-2) var(--space-3);
+        font-size: var(--font-size-xs);
+    }
+
+    /* Chat interface optimizations */
+    .query-header {
+        padding: var(--space-4) var(--space-4);
+    }
+
+    .chat-container {
+        padding: var(--space-4) var(--space-4);
+        padding-bottom: 140px;
+    }
+
+    .chat-input-container {
+        padding: var(--space-4) var(--space-4) var(--space-5);
+    }
+
+    .chat-input-wrapper {
+        border-radius: 20px;
+    }
+
+    /* Table responsiveness */
+    .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .result-table {
+        font-size: var(--font-size-xs);
+    }
+
+    .result-table th,
+    .result-table td {
+        padding: var(--space-2);
+        white-space: nowrap;
+    }
+}
+
+/* Mobile phones (480px) */
+@media (max-width: 480px) {
+    .nav__container {
+        padding: 0 var(--space-4);
+    }
+
+    .nav__brand {
+        font-size: var(--font-size-base);
+    }
+
+    .nav__menu {
         display: none;
+        /* Hide menu on very small screens */
+    }
+
+    .hero {
+        padding: var(--space-10) var(--space-4);
+    }
+
+    .hero__title {
+        font-size: 1.75rem;
+    }
+
+    .hero__subtitle {
+        font-size: var(--font-size-base);
+    }
+
+    /* Chat optimizations for phones */
+    .query-header {
+        padding: var(--space-3) var(--space-3);
+    }
+
+    .query-header__title {
+        font-size: var(--font-size-lg);
+    }
+
+    .chat-container {
+        padding: var(--space-3) var(--space-3);
+        padding-bottom: 130px;
+    }
+
+    .chat-message {
+        max-width: 100%;
+        padding: var(--space-3);
+    }
+
+    .chat-message--user {
+        margin-left: 0;
+    }
+
+    .chat-message--ai {
+        margin-right: 0;
+    }
+
+    .chat-input-container {
+        padding: var(--space-3) var(--space-3) var(--space-4);
+    }
+
+    .chat-input-wrapper {
+        padding: var(--space-1);
+        border-radius: 16px;
+    }
+
+    .chat-input {
+        font-size: var(--font-size-sm);
+        padding: var(--space-3);
+    }
+
+    .chat-send-btn {
+        width: 36px;
+        height: 36px;
+    }
+
+    /* Welcome screen */
+    .chat-welcome {
+        padding: var(--space-10) var(--space-3) var(--space-8);
+    }
+
+    .chat-welcome__icon {
+        width: 56px;
+        height: 56px;
+    }
+
+    .chat-welcome__title {
+        font-size: var(--font-size-xl);
+    }
+
+    .example-query {
+        font-size: var(--font-size-sm);
+        padding: var(--space-2) var(--space-3);
+    }
+
+    /* Settings page */
+    .dashboard {
+        padding: var(--space-6) var(--space-4);
+    }
+
+    .dashboard__title {
+        font-size: var(--font-size-2xl);
+    }
+
+    /* Login/Connect pages */
+    .login-card,
+    .connect-card {
+        padding: var(--space-5);
+    }
+
+    .login-card__title {
+        font-size: var(--font-size-xl);
+    }
+}
+
+/* Small phones (320px) */
+@media (max-width: 320px) {
+    .nav__brand-icon {
+        width: 28px;
+        height: 28px;
+    }
+
+    .chat-message {
+        font-size: var(--font-size-sm);
+    }
+
+    .chat-input {
+        font-size: var(--font-size-xs);
+    }
+
+    .example-query {
+        font-size: var(--font-size-xs);
     }
 }
 
