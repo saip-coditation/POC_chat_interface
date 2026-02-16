@@ -21,9 +21,7 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 COPY backend/ /app/
 
 # Copy frontend files to a location where collectstatic can find them
-COPY css/ /app/static_src/css/
-COPY js/ /app/static_src/js/
-COPY public/ /app/static_src/public/
+COPY static/ /app/static_src/
 COPY index.html /app/templates/
 
 # Expose port

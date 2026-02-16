@@ -108,16 +108,12 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 # Check if running in Docker (static_src exists) or Local (parent dir)
 if (BASE_DIR / 'static_src').exists():
     STATICFILES_DIRS = [
-        BASE_DIR / 'static_src/css',
-        BASE_DIR / 'static_src/js',
-        BASE_DIR / 'static_src/public',
+        BASE_DIR / 'static_src',
     ]
 else:
     # Local development fallback
     STATICFILES_DIRS = [
-        BASE_DIR.parent / 'css',
-        BASE_DIR.parent / 'js',
-        BASE_DIR.parent / 'public',
+        BASE_DIR.parent / 'static',
     ]
 # Workaround to allow serving from root subfolders as static
 # Note: In production, these should be handled by a proper static server config.
