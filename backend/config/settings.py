@@ -111,6 +111,10 @@ STATICFILES_DIRS = [
 # Workaround to allow serving from root subfolders as static
 # Note: In production, these should be handled by a proper static server config.
 
+# Media files (uploaded by users)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
