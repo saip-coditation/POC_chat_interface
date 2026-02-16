@@ -91,6 +91,8 @@ def fetch_repos(token: str, filters: dict = None) -> dict:
         )
         
         if response.status_code != 200:
+            if response.status_code == 401:
+                return {'data': [], 'count': 0, 'error': 'GitHub API Unauthorized (401). Please check your GITHUB_TOKEN.'}
             return {'data': [], 'count': 0, 'error': f'API error: {response.status_code}'}
         
         repos = response.json()
