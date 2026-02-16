@@ -17,8 +17,14 @@ RUN apt-get update && apt-get install -y \
 COPY backend/requirements.txt /app/
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
-# Copy project
+# Copy backend project
 COPY backend/ /app/
+
+# Copy frontend files to parent directory (where Django expects them)
+COPY index.html /
+COPY css/ /css/
+COPY js/ /js/
+COPY public/ /public/
 
 # Expose port
 EXPOSE 8000
