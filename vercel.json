@@ -5,8 +5,7 @@
             "use": "@vercel/python",
             "config": {
                 "maxLambdaSize": "15mb",
-                "runtime": "python3.12",
-                "requirementsPath": "backend/requirements-vercel.txt"
+                "runtime": "python3.12"
             }
         }
     ],
@@ -14,14 +13,6 @@
         {
             "src": "/api/(.*)",
             "dest": "backend/config/wsgi.py"
-        },
-        {
-            "src": "/",
-            "dest": "/public/index.html"
-        },
-        {
-            "src": "/(.*)",
-            "dest": "/public/$1"
         }
     ]
 }
