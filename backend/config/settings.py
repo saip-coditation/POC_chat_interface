@@ -158,12 +158,18 @@ SIMPLE_JWT = {
 }
 
 # CORS settings
-CORS_ALLOWED_ORIGINS = os.getenv(
-    'CORS_ALLOWED_ORIGINS',
-    'http://localhost:3000,http://127.0.0.1:5500,http://localhost:5500'
-).split(',')
-
+# Allow all origins to prevent connection issues
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
+
+# Add Render to CSRF trusted origins just in case
+CSRF_TRUSTED_ORIGINS = [
+    'https://poc-chat-interface.onrender.com',
+    'https://*.onrender.com',
+]
+
+# SSL Proxy Header (needed for Render)
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # OpenAI settings
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
