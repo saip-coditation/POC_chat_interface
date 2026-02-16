@@ -5,18 +5,31 @@
             "use": "@vercel/python",
             "config": {
                 "maxLambdaSize": "15mb",
-                "runtime": "python3.12"
+                "runtime": "python3.12",
+                "requirementsPath": "backend/requirements-vercel.txt"
             }
         }
     ],
     "routes": [
         {
-            "src": "/static/(.*)",
-            "dest": "/static/$1"
-        },
-        {
             "src": "/api/(.*)",
             "dest": "backend/config/wsgi.py"
+        },
+        {
+            "src": "/css/(.*)",
+            "dest": "/css/$1"
+        },
+        {
+            "src": "/js/(.*)",
+            "dest": "/js/$1"
+        },
+        {
+            "src": "/assets/(.*)",
+            "dest": "/assets/$1"
+        },
+        {
+            "src": "/static/(.*)",
+            "dest": "/static/$1"
         },
         {
             "src": "/(.*)",
