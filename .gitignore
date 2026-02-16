@@ -19,3 +19,5 @@ db.sqlite3
 
 # Documentation
 PROJECT_HANDOVER.md
+VERCEL_DEPLOYMENT_GUIDE.md
+test_queries_for_rag.md

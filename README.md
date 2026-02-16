@@ -43,7 +43,20 @@ Chat_Interface/
 
 ## Quick Start
 
-### 1. Backend Setup
+### 1. Docker Setup (Recommended)
+
+The easiest way to run the project is using Docker. This will set up both the backend and frontend for you.
+
+```bash
+# 1. Start the services
+docker compose up --build
+
+# 2. Access the application
+# Frontend: http://localhost:5500
+# Backend: http://localhost:8000
+```
+
+### 2. Manual Backend Setup
 
 ```bash
 cd backend
@@ -74,7 +87,7 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
-### 2. Frontend Setup
+### 3. Frontend Setup
 
 The frontend is static HTML/CSS/JS. You can serve it with any static file server:
 
@@ -87,7 +100,7 @@ python -m http.server 5500
 # Option 3: Any static file server
 ```
 
-### 3. Access the Application
+### 4. Access the Application
 
 - Frontend: http://localhost:5500 (or wherever you serve it)
 - Backend API: http://localhost:8000/api/
@@ -167,8 +180,35 @@ python manage.py test
 ### CORS Configuration
 Update `CORS_ALLOWED_ORIGINS` in `.env` to include your frontend URL.
 
-## License
 
+## Deployment to Vercel (Production)
+
+This project is configured for deployment on Vercel with a Postgres database.
+
+### 1. Prerequisites
+- A [Vercel](https://vercel.com) account.
+- A GitHub repository with this code.
+
+### 2. Setup Database (Vercel Postgres / Neon / Supabase)
+Since Vercel is serverless, you need an external database.
+1.  Go to **Storage** tab in your Vercel Project.
+2.  Click **Connect Store** -> **Postgres** (or use Neon/Supabase).
+3.  Create the database.
+4.  Vercel will automatically add the `POSTGRES_URL` (or `DATABASE_URL`) environment variable to your project.
+
+### 3. Deploy
+1.  Import your GitHub repository to Vercel.
+2.  Add the following **Environment Variables** in Vercel settings:
+    - `SECRET_KEY`: (Generate a random string)
+    - `OPENAI_API_KEY`: Your OpenAI Key
+    - `ENCRYPTION_KEY`: (Generate one using Python)
+    - `DEBUG`: `False`
+    - `DATABASE_URL`: (Your Postgres connection string, usually `postgres://...`)
+
+3.  Click **Deploy**.
+4.  Vercel will automatically run `build_files.sh` to install dependencies and collect static files.
+
+## License
 MIT
 
 
@@ -233,3 +273,6 @@ fully working AI-driven backend for querying third-party platforms
     - Example settings.py integration
     - Example usage instructions
 
+demo username and password:-
+username :- sumitphapale@gmail.com 
+password :- sumit@1234
