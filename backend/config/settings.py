@@ -63,7 +63,7 @@ ROOT_URLCONF = 'config.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR.parent], # Serve index.html from root
+        'DIRS': [BASE_DIR / 'templates'],  # Templates in /app/templates/
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -104,9 +104,9 @@ USE_TZ = True
 STATIC_URL = '/'  # Serve static files from root to match hardcoded paths in index.html
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [
-    BASE_DIR.parent / 'css',
-    BASE_DIR.parent / 'js',
-    BASE_DIR.parent / 'assets',
+    BASE_DIR / 'static_src/css',
+    BASE_DIR / 'static_src/js',
+    BASE_DIR / 'static_src/public',
 ]
 # Workaround to allow serving from root subfolders as static
 # Note: In production, these should be handled by a proper static server config.

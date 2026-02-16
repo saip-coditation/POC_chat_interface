@@ -20,11 +20,11 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 # Copy backend project
 COPY backend/ /app/
 
-# Copy frontend files to parent directory (where Django expects them)
-COPY index.html /
-COPY css/ /css/
-COPY js/ /js/
-COPY public/ /public/
+# Copy frontend files to a location where collectstatic can find them
+COPY css/ /app/static_src/css/
+COPY js/ /app/static_src/js/
+COPY public/ /app/static_src/public/
+COPY index.html /app/templates/
 
 # Expose port
 EXPOSE 8000
