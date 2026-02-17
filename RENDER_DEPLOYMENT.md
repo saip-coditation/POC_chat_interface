@@ -1,5 +1,19 @@
 # Render Deployment & Troubleshooting
 
+## "No response received" Error
+
+If queries like "Show me trello boards" return **"No response received"**:
+
+1. **Render timeout (~30s on free tier)** – The request exceeds Render's limit. On cold start, the app can take 50+ seconds to wake; first requests may time out.
+2. **Trello/OpenAI unreachable** – Render may block outbound calls to `api.trello.com` or `api.openai.com`. Check Render logs for `APIConnectionError` or `Connection error`.
+3. **Platform not connected** – Ensure Trello (or the relevant platform) is connected in the app and credentials are valid.
+
+**What we do:**
+- Trello requests use a 25s timeout to fail fast instead of hanging.
+- Local embeddings (sentence-transformers) are preloaded on Render so the first knowledge query is faster.
+
+---
+
 ## "Embedding generation failed" Error
 
 If you see **"Error processing knowledge query: Embedding generation failed"** on Render, it usually means:

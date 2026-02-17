@@ -9,6 +9,9 @@ logger = logging.getLogger(__name__)
 
 BASE_URL = "https://api.trello.com/1"
 
+# Timeout to avoid hanging when Render/proxy blocks api.trello.com or Trello is slow
+REQUEST_TIMEOUT = 25  # seconds - under Render's ~30s limit
+
 def validate_credentials(api_key, token):
     """
     Validate Trello API Key and Token.
@@ -21,7 +24,7 @@ def validate_credentials(api_key, token):
             'token': token
         }
         
-        response = requests.get(url, params=params)
+        response = requests.get(url, params=params, timeout=REQUEST_TIMEOUT)
         
         if response.status_code == 200:
             data = response.json()
@@ -54,7 +57,7 @@ def execute_query(action, filters, api_key, token):
             url = f"{BASE_URL}/members/me/boards"
             # Apply filters if possible (Trello API filters are limited on this endpoint)
             # Default fetch
-            response = requests.get(url, params=params)
+            response = requests.get(url, params=params, timeout=REQUEST_TIMEOUT)
             response.raise_for_status()
             data = response.json()
             
@@ -80,7 +83,7 @@ def execute_query(action, filters, api_key, token):
             
             # Resolve board name to ID if needed
             if not board_id:
-                boards_resp = requests.get(f"{BASE_URL}/members/me/boards", params=params)
+                boards_resp = requests.get(f"{BASE_URL}/members/me/boards", params=params, timeout=REQUEST_TIMEOUT)
                 boards = boards_resp.json()
                 # Fuzzy match
                 board = next((b for b in boards if board_name.lower() in b['name'].lower()), None)
@@ -90,14 +93,14 @@ def execute_query(action, filters, api_key, token):
                 
             # Now fetch cards
             url = f"{BASE_URL}/boards/{board_id}/cards"
-            response = requests.get(url, params=params)
+            response = requests.get(url, params=params, timeout=REQUEST_TIMEOUT)
             response.raise_for_status()
             cards = response.json()
             
             # Filter by list/status if possible (requires fetching lists to map names)
             list_name = filters.get('list_name')
             if list_name:
-                lists_resp = requests.get(f"{BASE_URL}/boards/{board_id}/lists", params=params)
+                lists_resp = requests.get(f"{BASE_URL}/boards/{board_id}/lists", params=params, timeout=REQUEST_TIMEOUT)
                 lists = lists_resp.json()
                 target_list = next((l for l in lists if list_name.lower() in l['name'].lower()), None)
                 if target_list:
@@ -117,7 +120,7 @@ def execute_query(action, filters, api_key, token):
                 return {'success': False, 'error': 'Please specify a board name.'}
                 
              # Resolve board
-            boards_resp = requests.get(f"{BASE_URL}/members/me/boards", params=params)
+            boards_resp = requests.get(f"{BASE_URL}/members/me/boards", params=params, timeout=REQUEST_TIMEOUT)
             boards = boards_resp.json()
             board = next((b for b in boards if board_name.lower() in b['name'].lower()), None)
             
@@ -125,7 +128,7 @@ def execute_query(action, filters, api_key, token):
                 return {'success': False, 'error': f"Could not find board matching '{board_name}'"}
                 
             url = f"{BASE_URL}/boards/{board['id']}/lists"
-            response = requests.get(url, params=params)
+            response = requests.get(url, params=params, timeout=REQUEST_TIMEOUT)
             data = response.json()
             
             return {
@@ -147,7 +150,7 @@ def execute_query(action, filters, api_key, token):
                 return {'success': False, 'error': 'Creating a card requires board_name and list_name.'}
                 
             # 1. Resolve Board
-            boards_resp = requests.get(f"{BASE_URL}/members/me/boards", params=params)
+            boards_resp = requests.get(f"{BASE_URL}/members/me/boards", params=params, timeout=REQUEST_TIMEOUT)
             boards_resp.raise_for_status()
             boards = boards_resp.json()
             board = next((b for b in boards if board_name.lower() in b['name'].lower()), None)
@@ -156,7 +159,7 @@ def execute_query(action, filters, api_key, token):
                  return {'success': False, 'error': f"Could not find board matching '{board_name}'"}
             
             # 2. Resolve List
-            lists_resp = requests.get(f"{BASE_URL}/boards/{board['id']}/lists", params=params)
+            lists_resp = requests.get(f"{BASE_URL}/boards/{board['id']}/lists", params=params, timeout=REQUEST_TIMEOUT)
             lists_resp.raise_for_status()
             lists = lists_resp.json()
             
@@ -190,7 +193,7 @@ def execute_query(action, filters, api_key, token):
                 'desc': desc
             })
             
-            response = requests.post(url, params=post_params)
+            response = requests.post(url, params=post_params, timeout=REQUEST_TIMEOUT)
             response.raise_for_status()
             data = response.json()
             
@@ -210,7 +213,7 @@ def execute_query(action, filters, api_key, token):
                 return {'success': False, 'error': 'Deleting a card requires board_name and name.'}
                 
             # 1. Resolve Board
-            boards_resp = requests.get(f"{BASE_URL}/members/me/boards", params=params)
+            boards_resp = requests.get(f"{BASE_URL}/members/me/boards", params=params, timeout=REQUEST_TIMEOUT)
             boards_resp.raise_for_status()
             boards = boards_resp.json()
             board = next((b for b in boards if board_name.lower() in b['name'].lower()), None)
@@ -220,13 +223,13 @@ def execute_query(action, filters, api_key, token):
             
             # 2. Find Card (Fetch all cards on board)
             url = f"{BASE_URL}/boards/{board['id']}/cards"
-            response = requests.get(url, params=params)
+            response = requests.get(url, params=params, timeout=REQUEST_TIMEOUT)
             response.raise_for_status()
             cards = response.json()
             
             # Filter by list if provided
             if list_name:
-                lists_resp = requests.get(f"{BASE_URL}/boards/{board['id']}/lists", params=params)
+                lists_resp = requests.get(f"{BASE_URL}/boards/{board['id']}/lists", params=params, timeout=REQUEST_TIMEOUT)
                 lists = lists_resp.json()
                 target_list = next((l for l in lists if list_name.lower() in l['name'].lower()), None)
                 if target_list:
@@ -243,7 +246,7 @@ def execute_query(action, filters, api_key, token):
             
             # 3. Delete Card
             del_url = f"{BASE_URL}/cards/{target_card['id']}"
-            del_resp = requests.delete(del_url, params=params)
+            del_resp = requests.delete(del_url, params=params, timeout=REQUEST_TIMEOUT)
             del_resp.raise_for_status()
             
             return {
