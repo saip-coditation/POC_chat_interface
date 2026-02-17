@@ -27,5 +27,6 @@ COPY index.html /app/templates/
 # Expose port
 EXPOSE 8000
 
-# Run migrations, seed data, seed knowledge base, collect static files, and start server
-CMD ["sh", "-c", "python manage.py collectstatic --noinput && python manage.py migrate && python scripts/seed_render_data.py && python seed_platform_knowledge.py && python manage.py runserver 0.0.0.0:8000"]
+# Run migrations, seed data, collect static, and start server.
+# Optional: set RUN_KNOWLEDGE_SEED=1 to seed RAG knowledge base at startup (slow; not needed on Render).
+CMD ["sh", "-c", "python manage.py collectstatic --noinput && python manage.py migrate && python scripts/seed_render_data.py && if [ \"$RUN_KNOWLEDGE_SEED\" = \"1\" ]; then python seed_platform_knowledge.py; fi && python manage.py runserver 0.0.0.0:8000"]

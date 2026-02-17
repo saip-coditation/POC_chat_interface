@@ -62,7 +62,14 @@ FALLBACK_KNOWLEDGE = {
 
 
 def _try_fallback_knowledge(query: str) -> Optional[str]:
-    """If RAG/embeddings failed, try keyword-based fallback for common queries."""
+    """If RAG/embeddings failed, try keyword-based fallback (full render_knowledge + legacy clone)."""
+    try:
+        from orchestrator.render_knowledge import get_render_answer
+        answer = get_render_answer(query)
+        if answer:
+            return answer
+    except Exception:
+        pass
     q = query.lower().strip()
     for topic, data in FALLBACK_KNOWLEDGE.items():
         if any(kw in q for kw in data["keywords"]):
@@ -71,25 +78,26 @@ def _try_fallback_knowledge(query: str) -> Optional[str]:
 
 
 def _maybe_seed_local_docs(collection, embeddings, coll_name: str) -> None:
-    """Lazy-seed documents_local with FALLBACK_KNOWLEDGE when empty."""
+    """Lazy-seed documents_local with full knowledge (RENDER_KNOWLEDGE) when empty."""
     if coll_name != "documents_local":
         return
     try:
         count = collection.count()
         if count > 0:
             return
+        from orchestrator.render_knowledge import RENDER_KNOWLEDGE
         local_emb = embeddings._get_local() if hasattr(embeddings, "_get_local") else embeddings
         docs, ids, metas = [], [], []
-        for topic, data in FALLBACK_KNOWLEDGE.items():
-            title = f"Knowledge: {topic}"
-            text = data["answer"]
+        for i, entry in enumerate(RENDER_KNOWLEDGE):
+            text = entry["answer"]
+            first_kw = entry["keywords"][0] if entry["keywords"] else "doc"
             docs.append(text)
-            ids.append(f"fallback_{topic}")
-            metas.append({"title": title, "platform": "github"})
+            ids.append(f"rag_doc_{i}_{first_kw}")
+            metas.append({"title": f"Knowledge: {first_kw}", "platform": "knowledge"})
         if docs:
             vecs = local_emb.embed_batch(docs)
             collection.add(ids=ids, embeddings=vecs, documents=docs, metadatas=metas)
-            logger.info(f"Seeded documents_local with {len(docs)} fallback docs")
+            logger.info(f"Seeded documents_local with {len(docs)} RAG docs")
     except Exception as e:
         logger.warning(f"Lazy seed of documents_local failed: {e}")
 
@@ -1432,10 +1440,9 @@ CONTENT RULES:
                     workflow_used="trello_knowledge"
                 )
         
-        # General knowledge query - use RAG (on Render: use direct fallback only for fast deploy)
+        # General knowledge query - use RAG (on Render: keyword answers only so deploy stays <5 min)
         try:
             if os.getenv("RENDER"):
-                # Render: use seed_platform_knowledge-style answers (no RAG/embeddings)
                 from orchestrator.render_knowledge import get_render_answer
                 answer = get_render_answer(query)
                 if answer:
@@ -1448,7 +1455,7 @@ CONTENT RULES:
                     )
                 return OrchestratorResult(
                     success=False,
-                    error="I can answer questions about: clone/push to GitHub, Stripe (payments, refunds, subscriptions), Salesforce (leads, pipeline), GitHub (PRs, commits), Zoho deals, Trello boards. Try one of those.",
+                    error="I can answer questions about: clone/push to GitHub, Stripe, Salesforce, GitHub PRs/commits, Zoho deals, Trello. Try one of those.",
                     intent={"intent_type": "KNOWLEDGE_QUERY"},
                 )
             # 1. Embed query
@@ -1475,7 +1482,16 @@ CONTENT RULES:
             )
             
             if not results.get('ids') or not results['ids'] or len(results['ids'][0]) == 0:
-                # Check if query mentions a platform mismatch
+                # No RAG results (e.g. before first seed): try keyword fallback
+                fallback = _try_fallback_knowledge(query)
+                if fallback:
+                    return OrchestratorResult(
+                        success=True,
+                        data=[{"answer": fallback, "sources": ["knowledge base"], "type": "knowledge"}],
+                        intent={"intent_type": "KNOWLEDGE_QUERY", "platform": "fallback"},
+                        summary=fallback.split("\n")[0] if fallback else "Answer",
+                        workflow_used="knowledge_search_fallback",
+                    )
                 query_lower = query.lower()
                 platform_hint = ""
                 if any(kw in query_lower for kw in ['payment', 'invoice', 'charge', 'refund', 'stripe', 'billing']):
@@ -1484,11 +1500,9 @@ CONTENT RULES:
                     platform_hint = " Note: Lead and sales questions are typically about Salesforce, not Trello."
                 elif any(kw in query_lower for kw in ['pr', 'pull request', 'commit', 'github', 'repo']):
                     platform_hint = " Note: Code-related questions are typically about GitHub, not Trello."
-                
                 error_msg = "I couldn't find any relevant information in the knowledge base."
                 if platform_hint:
                     error_msg += platform_hint
-                
                 return OrchestratorResult(
                     success=False,
                     error=error_msg,
@@ -1579,17 +1593,25 @@ CONTENT RULES:
 - Focus on actionable steps
 - If platform mismatch, clarify briefly at start"""
             
-            response = client.chat.completions.create(
-                model=get_model_name(),
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"Context:\n{context_text}\n\nQuestion: {query}{platform_note}"}
-                ],
-                temperature=0.2,
-                max_tokens=300
-            )
-            
-            answer = response.choices[0].message.content
+            try:
+                response = client.chat.completions.create(
+                    model=get_model_name(),
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": f"Context:\n{context_text}\n\nQuestion: {query}{platform_note}"}
+                    ],
+                    temperature=0.2,
+                    max_tokens=300
+                )
+                answer = response.choices[0].message.content
+            except Exception as synth_e:
+                # OpenAI unreachable (e.g. Render): return retrieved RAG context as answer
+                err_lower = str(synth_e).lower()
+                if "connection" in err_lower or "timeout" in err_lower or "apiconnectionerror" in err_lower:
+                    logger.warning(f"Synthesis failed (API unreachable), returning retrieved context: {synth_e}")
+                    answer = context_text.strip() if context_text.strip() else "\n\n".join(results["documents"][0][:3]) if results.get("documents") else "No content retrieved."
+                else:
+                    raise
             
             return OrchestratorResult(
                 success=True,

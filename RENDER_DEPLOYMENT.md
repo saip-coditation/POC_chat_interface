@@ -2,8 +2,8 @@
 
 ## Fast deploys (~2–3 min)
 
-- **sentence-transformers is not installed** on Render so the build stays fast.
-- **Knowledge answers on Render** use **direct answers from render_knowledge (same topics as seed_platform_knowledge)** (no RAG, no embeddings): e.g. “How do I clone a repository?” returns a fixed answer. Other knowledge questions get: *“I can only answer a few questions here. Try: How do I clone a repository?”*
+- **sentence-transformers is not installed (keeps build & deploy under 5 min)** on Render so the build stays fast.
+- **Knowledge answers on Render** use **keyword-based answers** (render_knowledge, same content as seed_platform_knowledge). No RAG/embeddings so deploy stays **under 5 min**. Unmatched questions get a short hint. e.g. “How do I clone a repository?” returns a fixed answer. Other knowledge questions get: *“I can only answer a few questions here. Try: How do I clone a repository?”*
 - Full RAG + embeddings still runs when **not** on Render (local or other hosts).
 
 ## "No response received" Error
