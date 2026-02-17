@@ -20,6 +20,79 @@ from connectors.base import GovernanceClass
 logger = logging.getLogger(__name__)
 
 
+# Fallback knowledge for common queries when embeddings/RAG fails (e.g. OPENAI_API_KEY missing on Render)
+FALLBACK_KNOWLEDGE = {
+    "clone": {
+        "keywords": ["clone", "cloning", "clone a repo", "clone repository", "how do i clone", "how to clone"],
+        "answer": """**How to Clone a Repository (Git/GitHub)**
+
+1. **Basic command:**
+   ```bash
+   git clone <repository-url>
+   ```
+
+2. **Clone via HTTPS:**
+   ```bash
+   git clone https://github.com/username/repository-name.git
+   ```
+   - Most common method
+   - Requires GitHub username and password/token
+
+3. **Clone via SSH:**
+   ```bash
+   git clone git@github.com:username/repository-name.git
+   ```
+   - Requires SSH key setup
+   - More secure, no password needed
+
+4. **Clone into a specific folder:**
+   ```bash
+   git clone https://github.com/username/repo.git my-folder-name
+   ```
+
+5. **Clone a specific branch:**
+   ```bash
+   git clone -b branch-name https://github.com/username/repo.git
+   ```
+
+**Steps:** Get the repo URL from GitHub (click "Code"), open a terminal, run `git clone <url>`, then `cd repository-name`."""
+    },
+}
+
+
+def _try_fallback_knowledge(query: str) -> Optional[str]:
+    """If RAG/embeddings failed, try keyword-based fallback for common queries."""
+    q = query.lower().strip()
+    for topic, data in FALLBACK_KNOWLEDGE.items():
+        if any(kw in q for kw in data["keywords"]):
+            return data["answer"]
+    return None
+
+
+def _maybe_seed_local_docs(collection, embeddings, coll_name: str) -> None:
+    """Lazy-seed documents_local with FALLBACK_KNOWLEDGE when empty."""
+    if coll_name != "documents_local":
+        return
+    try:
+        count = collection.count()
+        if count > 0:
+            return
+        local_emb = embeddings._get_local() if hasattr(embeddings, "_get_local") else embeddings
+        docs, ids, metas = [], [], []
+        for topic, data in FALLBACK_KNOWLEDGE.items():
+            title = f"Knowledge: {topic}"
+            text = data["answer"]
+            docs.append(text)
+            ids.append(f"fallback_{topic}")
+            metas.append({"title": title, "platform": "github"})
+        if docs:
+            vecs = local_emb.embed_batch(docs)
+            collection.add(ids=ids, embeddings=vecs, documents=docs, metadatas=metas)
+            logger.info(f"Seeded documents_local with {len(docs)} fallback docs")
+    except Exception as e:
+        logger.warning(f"Lazy seed of documents_local failed: {e}")
+
+
 @dataclass
 class OrchestratorContext:
     """Context for query orchestration."""
@@ -1370,11 +1443,13 @@ CONTENT RULES:
                 logger.warning(f"Failed to generate embedding for query: {query}")
                 raise Exception("Embedding generation failed")
             
-            # 2. Search Chroma
+            # 2. Search Chroma (use documents_local when on local embeddings fallback)
             from rag.chroma_client import get_chroma_client
             chroma = get_chroma_client()
-            collection = chroma.get_or_create_collection("documents")
-            
+            coll_name = getattr(embeddings, "collection_name", "documents")
+            collection = chroma.get_or_create_collection(coll_name)
+            _maybe_seed_local_docs(collection, embeddings, coll_name)
+
             results = collection.query(
                 query_embeddings=[query_vec],
                 n_results=3,
@@ -1508,10 +1583,25 @@ CONTENT RULES:
             
         except Exception as e:
             logger.exception("Knowledge query processing failed")
+            # When embeddings fail (e.g. OPENAI_API_KEY missing on Render), try keyword fallback
+            fallback = _try_fallback_knowledge(query)
+            if fallback:
+                return OrchestratorResult(
+                    success=True,
+                    data=[{"answer": fallback, "sources": ["fallback knowledge"], "type": "knowledge"}],
+                    intent={"intent_type": "KNOWLEDGE_QUERY", "platform": "fallback"},
+                    summary=fallback.split("\n")[0] if fallback else "Knowledge answer",
+                    workflow_used="knowledge_search_fallback",
+                )
+            hint = (
+                " Set OPENAI_API_KEY in your environment (e.g. Render dashboard) and redeploy."
+                if "embedding" in str(e).lower()
+                else ""
+            )
             return OrchestratorResult(
                 success=False,
-                error=f"Error processing knowledge query: {str(e)}",
-                intent={"intent_type": "KNOWLEDGE_QUERY", "platform": "rag"}
+                error=f"Error processing knowledge query: {str(e)}.{hint}",
+                intent={"intent_type": "KNOWLEDGE_QUERY", "platform": "rag"},
             )
 
 

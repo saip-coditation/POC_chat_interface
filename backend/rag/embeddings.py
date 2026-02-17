@@ -2,7 +2,7 @@
 OpenAI Embeddings Client
 
 Uses OpenAI (or compatible OpenRouter) API to generate text embeddings for semantic search.
-Switched from Gemini to leverage existing OPENAI_API_KEY configuration.
+Falls back to sentence-transformers (local) when OpenAI API is unreachable (e.g. Render APIConnectionError).
 """
 
 import os
@@ -14,6 +14,67 @@ from django.conf import settings
 from openai import OpenAI
 
 logger = logging.getLogger(__name__)
+
+# Connection errors that trigger local fallback
+_CONNECTION_ERROR_NAMES = ("APIConnectionError", "ConnectionError", "ConnectError", "Timeout")
+
+
+def _is_connection_error(exc: Exception) -> bool:
+    """True if this exception indicates OpenAI API is unreachable."""
+    name = type(exc).__name__
+    if name in _CONNECTION_ERROR_NAMES:
+        return True
+    msg = str(exc).lower()
+    return "connection" in msg or "connection error" in msg or "connection refused" in msg
+
+
+class LocalEmbeddings:
+    """
+    Local embeddings via sentence-transformers. No API calls.
+    Used when OpenAI is unreachable (e.g. Render APIConnectionError).
+    """
+
+    def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
+        self.model_name = model_name
+        self._model = None
+
+    def _get_model(self):
+        if self._model is None:
+            try:
+                from sentence_transformers import SentenceTransformer
+
+                self._model = SentenceTransformer(self.model_name)
+                logger.info("Local embeddings (sentence-transformers) initialized")
+            except ImportError:
+                raise ImportError(
+                    "sentence-transformers required for local fallback. "
+                    "Install: pip install sentence-transformers"
+                )
+        return self._model
+
+    def embed(self, text: str, task_type: str = "retrieval_document") -> List[float]:
+        if not text or not text.strip():
+            return []
+        vectors = self.embed_batch([text])
+        return vectors[0] if vectors else []
+
+    def embed_batch(
+        self, texts: List[str], task_type: str = "retrieval_document"
+    ) -> List[List[float]]:
+        if not texts:
+            return []
+        valid = [t.strip() for t in texts if t and t.strip()]
+        if not valid:
+            return []
+        model = self._get_model()
+        vectors = model.encode(valid, convert_to_numpy=True)
+        return [v.tolist() for v in vectors]
+
+    def embed_for_query(self, text: str) -> List[float]:
+        return self.embed(text)
+
+    def embed_for_storage(self, text: str) -> List[float]:
+        return self.embed(text)
 
 
 class GeminiEmbeddings:
@@ -125,24 +186,25 @@ class GeminiEmbeddings:
                     
                 except Exception as e:
                     error_str = str(e).lower()
-                    # Log the full error for debugging
                     logger.error(f"Embedding batch failed ({attempt+1}/{max_retries}): {type(e).__name__}: {e}")
-                    
+
+                    if _is_connection_error(e):
+                        logger.warning("OpenAI unreachable (connection error), using local embeddings")
+                        raise  # Re-raise so FallbackEmbeddings can catch and use local
                     if "429" in error_str or "quota" in error_str:
                         if attempt < max_retries - 1:
                             delay = (base_delay * (2 ** attempt)) + random.uniform(0, 1)
                             logger.warning(f"Embedding rate limit. Retrying in {delay:.2f}s")
                             time.sleep(delay)
                             continue
-                    
                     if attempt == max_retries - 1:
-                        raise e
-                        
+                        raise
             return []
-            
         except Exception as e:
+            if _is_connection_error(e):
+                raise
             logger.error(f"Fatal embedding error: {e}")
-            return [[] for _ in texts] # Return empty vectors on failure to prevent crashes
+            return [[] for _ in texts]
     
     def embed_for_query(self, text: str) -> List[float]:
         """Convenience method for query embeddings."""
@@ -153,12 +215,60 @@ class GeminiEmbeddings:
         return self.embed(text)
 
 
+class FallbackEmbeddings:
+    """
+    Tries OpenAI first; on APIConnectionError uses local sentence-transformers.
+    """
+    # Chroma collection for local embeddings (384 dims vs OpenAI 1536)
+    LOCAL_COLLECTION = "documents_local"
+
+    def __init__(self):
+        self._openai = GeminiEmbeddings()
+        self._local: Optional[LocalEmbeddings] = None
+        self._use_local = False
+
+    @property
+    def collection_name(self) -> str:
+        """Use documents_local when on local fallback to avoid dimension mismatch."""
+        return self.LOCAL_COLLECTION if self._use_local else "documents"
+
+    def embed(self, text: str, task_type: str = "retrieval_document") -> List[float]:
+        return self.embed_batch([text], task_type)[0] if text and text.strip() else []
+
+    def embed_batch(
+        self, texts: List[str], task_type: str = "retrieval_document"
+    ) -> List[List[float]]:
+        if not texts:
+            return []
+        if self._use_local:
+            return self._get_local().embed_batch(texts, task_type)
+        try:
+            return self._openai.embed_batch(texts, task_type)
+        except Exception as e:
+            if _is_connection_error(e):
+                logger.warning("Switching to local embeddings (OpenAI unreachable)")
+                self._use_local = True
+                return self._get_local().embed_batch(texts, task_type)
+            raise
+
+    def _get_local(self) -> LocalEmbeddings:
+        if self._local is None:
+            self._local = LocalEmbeddings()
+        return self._local
+
+    def embed_for_query(self, text: str) -> List[float]:
+        return self.embed(text)
+
+    def embed_for_storage(self, text: str) -> List[float]:
+        return self.embed(text)
+
+
 # Singleton instance for convenience
 _default_embeddings = None
 
-def get_embeddings() -> GeminiEmbeddings:
-    """Get the default embeddings instance."""
+def get_embeddings() -> FallbackEmbeddings:
+    """Get the default embeddings instance (tries OpenAI, falls back to local on connection error)."""
     global _default_embeddings
     if _default_embeddings is None:
-        _default_embeddings = GeminiEmbeddings()
+        _default_embeddings = FallbackEmbeddings()
     return _default_embeddings
