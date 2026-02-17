@@ -186,8 +186,14 @@ class GeminiEmbeddings:
                     
                 except Exception as e:
                     error_str = str(e).lower()
+                    err_msg = str(e)
                     logger.error(f"Embedding batch failed ({attempt+1}/{max_retries}): {type(e).__name__}: {e}")
 
+                    # 401/authentication errors - don't retry, fail fast
+                    if "401" in err_msg or "unauthorized" in error_str or ("authentication" in error_str and "invalid" in error_str):
+                        logger.error(f"OpenAI API authentication failed (401): Check OPENAI_API_KEY")
+                        raise  # Re-raise so orchestrator can use keyword fallback
+                    
                     if _is_connection_error(e):
                         logger.warning("OpenAI unreachable (connection error), using local embeddings")
                         raise  # Re-raise so FallbackEmbeddings can catch and use local

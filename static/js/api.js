@@ -228,9 +228,20 @@ const API = {
 
         } catch (error) {
             console.error('Login error:', error);
+            let errorMessage = 'Connection failed. Please check if the server is running.';
+            
+            // Provide more specific error messages
+            if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                errorMessage = `Cannot connect to backend at ${API.baseUrl}. Please ensure the server is running on port 8000.`;
+            } else if (error.message.includes('CORS')) {
+                errorMessage = 'CORS error: Backend may not be allowing requests from this origin.';
+            } else {
+                errorMessage = error.message || errorMessage;
+            }
+            
             return {
                 success: false,
-                error: 'Connection failed. Please check if the server is running.'
+                error: errorMessage
             };
         }
     },
@@ -269,9 +280,20 @@ const API = {
 
         } catch (error) {
             console.error('Registration error:', error);
+            let errorMessage = 'Connection failed. Please check if the server is running.';
+            
+            // Provide more specific error messages
+            if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                errorMessage = `Cannot connect to backend at ${API.baseUrl}. Please ensure the server is running on port 8000.`;
+            } else if (error.message.includes('CORS')) {
+                errorMessage = 'CORS error: Backend may not be allowing requests from this origin.';
+            } else {
+                errorMessage = error.message || errorMessage;
+            }
+            
             return {
                 success: false,
-                error: 'Connection failed. Please check if the server is running.'
+                error: errorMessage
             };
         }
     },
@@ -512,11 +534,127 @@ const API = {
      * Get query autocomplete suggestions
      */
     async getQuerySuggestions(queryText, limit = 15) {
-        if (!queryText || queryText.length < 2) {
+        // Always call API even for empty query to get default patterns
+        const params = new URLSearchParams({ q: queryText || '', limit: limit.toString() });
+        try {
+            return await API.request(`/queries/autocomplete/?${params.toString()}`);
+        } catch (err) {
+            console.warn('Autocomplete API error:', err);
             return { suggestions: [] };
         }
-        const params = new URLSearchParams({ q: queryText, limit: limit.toString() });
-        return await API.request(`/queries/autocomplete/?${params.toString()}`);
+    },
+
+    /**
+     * ========== WORKFLOWS API ==========
+     */
+
+    /**
+     * Get all workflows
+     */
+    async getWorkflows() {
+        return await API.request('/queries/workflows/');
+    },
+
+    /**
+     * Get a single workflow by ID
+     */
+    async getWorkflow(id) {
+        return await API.request(`/queries/workflows/${id}/`);
+    },
+
+    /**
+     * Create a new workflow
+     */
+    async createWorkflow(name, description, definition) {
+        return await API.request('/queries/workflows/', {
+            method: 'POST',
+            body: JSON.stringify({ name, description, definition })
+        });
+    },
+
+    /**
+     * Update a workflow
+     */
+    async updateWorkflow(id, name, description, definition, status) {
+        return await API.request(`/queries/workflows/${id}/`, {
+            method: 'PATCH',
+            body: JSON.stringify({ name, description, definition, status })
+        });
+    },
+
+    /**
+     * Delete a workflow
+     */
+    async deleteWorkflow(id) {
+        return await API.request(`/queries/workflows/${id}/`, { method: 'DELETE' });
+    },
+
+    /**
+     * Execute a workflow
+     */
+    async executeWorkflow(id, inputData = {}) {
+        return await API.request(`/queries/workflows/${id}/execute/`, {
+            method: 'POST',
+            body: JSON.stringify({ input_data: inputData })
+        });
+    },
+
+    /**
+     * Get workflow executions
+     */
+    async getWorkflowExecutions(workflowId) {
+        return await API.request(`/queries/workflows/${workflowId}/executions/`);
+    },
+
+    /**
+     * ========== QUERY SUGGESTIONS API ==========
+     */
+
+    /**
+     * Get AI-powered query suggestions
+     */
+    async getAISuggestions(currentQuery = '', platform = '', limit = 10) {
+        const params = new URLSearchParams({
+            q: currentQuery,
+            platform: platform,
+            limit: limit.toString()
+        });
+        try {
+            return await API.request(`/queries/suggestions/?${params.toString()}`);
+        } catch (err) {
+            console.warn('Suggestions API error:', err);
+            return { suggestions: [] };
+        }
+    },
+
+    /**
+     * Track suggestion shown
+     */
+    async trackSuggestionShown(suggestion) {
+        // This would typically be called when a suggestion is displayed
+        // Implementation depends on backend tracking endpoint
+        try {
+            return await API.request('/queries/suggestions/track/', {
+                method: 'POST',
+                body: JSON.stringify({ action: 'shown', suggestion })
+            });
+        } catch (err) {
+            console.warn('Track suggestion error:', err);
+        }
+    },
+
+    /**
+     * Track suggestion clicked
+     */
+    async trackSuggestionClicked(suggestion) {
+        try {
+            return await API.request('/queries/suggestions/track/', {
+                method: 'POST',
+                body: JSON.stringify({ action: 'clicked', suggestion })
+            });
+        } catch (err) {
+            console.warn('Track suggestion click error:', err);
+        }
     },
 
     /**

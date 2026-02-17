@@ -17,13 +17,19 @@ from rest_framework.views import APIView
 
 from apps.platforms.models import PlatformConnection
 from utils.encryption import decrypt_api_key
-from .models import QueryLog, SavedQuery
+from .models import QueryLog, SavedQuery, Workflow, WorkflowExecution, QuerySuggestion
 from .serializers import (
     ProcessQuerySerializer,
     QueryLogSerializer,
     SavedQuerySerializer,
     SavedQueryCreateSerializer,
+    WorkflowSerializer,
+    WorkflowCreateSerializer,
+    WorkflowExecutionSerializer,
+    QuerySuggestionSerializer,
 )
+from .workflow_engine import WorkflowEngine
+from .suggestion_service import QuerySuggestionService
 
 # Import new Orchestrator
 from orchestrator import get_query_orchestrator, OrchestratorContext
@@ -123,7 +129,11 @@ class QueryAutocompleteView(APIView):
             })
         
         if len(query_text) < 2:
-            return Response({'suggestions': []})
+            # Still return common patterns for short queries
+            return Response({
+                'suggestions': self._get_common_patterns(query_text, limit),
+                'query': query_text
+            })
         
         suggestions = []
         query_lower = query_text.lower()
@@ -189,6 +199,16 @@ class QueryAutocompleteView(APIView):
     def _get_common_patterns(self, query_lower, limit):
         """Get common query patterns based on keywords."""
         patterns = []
+        
+        # Default patterns for empty/short queries (popular knowledge questions)
+        if not query_lower or len(query_lower) < 2:
+            patterns.extend([
+                {'text': 'How do I clone a repository?', 'type': 'pattern', 'label': 'How to clone repo', 'platform': 'github'},
+                {'text': 'How do I push code to GitHub?', 'type': 'pattern', 'label': 'How to push code to GitHub', 'platform': 'github'},
+                {'text': 'Show my boards', 'type': 'pattern', 'label': 'Show my boards', 'platform': 'trello'},
+                {'text': 'List all customers', 'type': 'pattern', 'label': 'All customers', 'platform': 'stripe'},
+                {'text': 'List all deals', 'type': 'pattern', 'label': 'All deals', 'platform': 'zoho'},
+            ])
         
         # Stripe patterns
         if any(word in query_lower for word in ['invoice', 'invoic', 'bill', 'payment']):
@@ -299,6 +319,20 @@ class QueryAutocompleteView(APIView):
         if any(word in query_lower for word in ['clone', 'repo', 'repository']):
             patterns.extend([
                 {'text': 'How do I clone a repository?', 'type': 'pattern', 'label': 'How to clone repo', 'platform': 'github'},
+            ])
+        
+        # GitHub push/commit patterns
+        if any(word in query_lower for word in ['push', 'upload', 'send code', 'deploy code']):
+            patterns.extend([
+                {'text': 'How do I push code to GitHub?', 'type': 'pattern', 'label': 'How to push code to GitHub', 'platform': 'github'},
+                {'text': 'How to push code in github?', 'type': 'pattern', 'label': 'How to push code in GitHub', 'platform': 'github'},
+            ])
+        
+        # General GitHub knowledge questions
+        if any(word in query_lower for word in ['how', 'what']) and any(word in query_lower for word in ['github', 'git', 'push', 'clone', 'commit', 'pr', 'pull request']):
+            patterns.extend([
+                {'text': 'How do I clone a repository?', 'type': 'pattern', 'label': 'How to clone repo', 'platform': 'github'},
+                {'text': 'How do I push code to GitHub?', 'type': 'pattern', 'label': 'How to push code to GitHub', 'platform': 'github'},
             ])
         
         # Trello patterns - Trigger when "trello" is mentioned
@@ -590,3 +624,162 @@ class ProcessQueryView(APIView):
             payload['type'] = data_type
         
         return payload
+
+
+class WorkflowListCreateView(APIView):
+    """List and create workflows."""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """List user's workflows."""
+        workflows = Workflow.objects.filter(user=request.user)
+        serializer = WorkflowSerializer(workflows, many=True)
+        return Response(serializer.data)
+    
+    def post(self, request):
+        """Create a new workflow."""
+        serializer = WorkflowCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            workflow = Workflow.objects.create(
+                user=request.user,
+                name=serializer.validated_data['name'],
+                description=serializer.validated_data.get('description', ''),
+                definition=serializer.validated_data['definition']
+            )
+            return Response(WorkflowSerializer(workflow).data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class WorkflowDetailView(APIView):
+    """Retrieve, update, or delete a workflow."""
+    permission_classes = [IsAuthenticated]
+    
+    def get_object(self, pk):
+        try:
+            return Workflow.objects.get(pk=pk, user=self.request.user)
+        except Workflow.DoesNotExist:
+            return None
+    
+    def get(self, request, pk):
+        """Get workflow details."""
+        workflow = self.get_object(pk)
+        if not workflow:
+            return Response({'error': 'Workflow not found'}, status=status.HTTP_404_NOT_FOUND)
+        serializer = WorkflowSerializer(workflow)
+        return Response(serializer.data)
+    
+    def put(self, request, pk):
+        """Update workflow."""
+        workflow = self.get_object(pk)
+        if not workflow:
+            return Response({'error': 'Workflow not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = WorkflowCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            workflow.name = serializer.validated_data['name']
+            workflow.description = serializer.validated_data.get('description', '')
+            workflow.definition = serializer.validated_data['definition']
+            workflow.save()
+            return Response(WorkflowSerializer(workflow).data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def delete(self, request, pk):
+        """Delete workflow."""
+        workflow = self.get_object(pk)
+        if not workflow:
+            return Response({'error': 'Workflow not found'}, status=status.HTTP_404_NOT_FOUND)
+        workflow.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class WorkflowExecuteView(APIView):
+    """Execute a workflow."""
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, pk):
+        """Execute a workflow."""
+        try:
+            workflow = Workflow.objects.get(pk=pk, user=request.user)
+        except Workflow.DoesNotExist:
+            return Response({'error': 'Workflow not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Get credentials
+        connections = PlatformConnection.objects.filter(user=request.user, is_valid=True)
+        credentials = {}
+        for conn in connections:
+            try:
+                decrypted_key = decrypt_api_key(conn.encrypted_api_key)
+                creds = {'api_key': decrypted_key}
+                if conn.metadata:
+                    creds.update(conn.metadata)
+                credentials[conn.platform.lower()] = creds
+            except Exception as e:
+                logger.error(f"Failed to decrypt key for {conn.platform}: {e}")
+        
+        # Execute workflow
+        engine = WorkflowEngine(request.user, credentials)
+        input_data = request.data.get('input_data', {})
+        execution = engine.execute_workflow(workflow, input_data)
+        
+        serializer = WorkflowExecutionSerializer(execution)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class WorkflowExecutionListView(APIView):
+    """List workflow executions."""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, pk):
+        """Get executions for a workflow."""
+        try:
+            workflow = Workflow.objects.get(pk=pk, user=request.user)
+        except Workflow.DoesNotExist:
+            return Response({'error': 'Workflow not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        executions = WorkflowExecution.objects.filter(workflow=workflow).order_by('-started_at')[:50]
+        serializer = WorkflowExecutionSerializer(executions, many=True)
+        return Response(serializer.data)
+
+
+class QuerySuggestionsView(APIView):
+    """Get AI-powered query suggestions."""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Get query suggestions."""
+        current_query = request.query_params.get('q', '').strip()
+        platform = request.query_params.get('platform', '').strip()
+        limit = int(request.query_params.get('limit', 10))
+        
+        service = QuerySuggestionService(request.user)
+        suggestions = service.get_suggestions(
+            current_query=current_query,
+            platform=platform,
+            limit=limit
+        )
+        
+        # Track suggestions shown
+        for sug in suggestions:
+            service.track_suggestion_shown(sug)
+        
+        serializer = QuerySuggestionSerializer(suggestions, many=True)
+        return Response({
+            'suggestions': serializer.data,
+            'query': current_query
+        })
+    
+    def post(self, request):
+        """Track suggestion click."""
+        query_text = request.data.get('query_text', '')
+        platform = request.data.get('platform', '')
+        suggestion_type = request.data.get('suggestion_type', 'similar')
+        
+        if query_text:
+            service = QuerySuggestionService(request.user)
+            service.track_suggestion_clicked({
+                'query_text': query_text,
+                'platform': platform,
+                'suggestion_type': suggestion_type
+            })
+        
+        return Response({'status': 'tracked'})

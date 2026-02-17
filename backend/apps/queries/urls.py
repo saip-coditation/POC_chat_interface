@@ -9,6 +9,11 @@ from .views import (
     SavedQueryListCreateView,
     SavedQueryDestroyView,
     QueryAutocompleteView,
+    WorkflowListCreateView,
+    WorkflowDetailView,
+    WorkflowExecuteView,
+    WorkflowExecutionListView,
+    QuerySuggestionsView,
 )
 
 urlpatterns = [
@@ -17,4 +22,11 @@ urlpatterns = [
     path('saved-queries/', SavedQueryListCreateView.as_view(), name='saved_query_list_create'),
     path('saved-queries/<int:pk>/', SavedQueryDestroyView.as_view(), name='saved_query_destroy'),
     path('autocomplete/', QueryAutocompleteView.as_view(), name='query_autocomplete'),
+    # Workflows
+    path('workflows/', WorkflowListCreateView.as_view(), name='workflow_list_create'),
+    path('workflows/<uuid:pk>/', WorkflowDetailView.as_view(), name='workflow_detail'),
+    path('workflows/<uuid:pk>/execute/', WorkflowExecuteView.as_view(), name='workflow_execute'),
+    path('workflows/<uuid:pk>/executions/', WorkflowExecutionListView.as_view(), name='workflow_executions'),
+    # Query Suggestions
+    path('suggestions/', QuerySuggestionsView.as_view(), name='query_suggestions'),
 ]

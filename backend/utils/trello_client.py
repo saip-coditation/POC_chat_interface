@@ -114,27 +114,65 @@ def execute_query(action, filters, api_key, token):
             }
             
         elif action == 'get_lists':
-             # Need board_id or name
+            # board_name is optional - if not provided, get lists from all boards
             board_name = filters.get('board_name')
-            if not board_name:
-                return {'success': False, 'error': 'Please specify a board name.'}
-                
-             # Resolve board
-            boards_resp = requests.get(f"{BASE_URL}/members/me/boards", params=params, timeout=REQUEST_TIMEOUT)
-            boards = boards_resp.json()
-            board = next((b for b in boards if board_name.lower() in b['name'].lower()), None)
+            board_id = filters.get('board_id')
             
-            if not board:
-                return {'success': False, 'error': f"Could not find board matching '{board_name}'"}
-                
-            url = f"{BASE_URL}/boards/{board['id']}/lists"
-            response = requests.get(url, params=params, timeout=REQUEST_TIMEOUT)
-            data = response.json()
+            # Get all boards first
+            boards_resp = requests.get(f"{BASE_URL}/members/me/boards", params=params, timeout=REQUEST_TIMEOUT)
+            boards_resp.raise_for_status()
+            boards = boards_resp.json()
+            
+            if board_id:
+                # Use specific board ID
+                target_board = next((b for b in boards if b['id'] == board_id), None)
+                if not target_board:
+                    return {'success': False, 'error': f"Could not find board with ID '{board_id}'"}
+                boards = [target_board]
+            elif board_name:
+                # Find board by name (fuzzy match)
+                board = next((b for b in boards if board_name.lower() in b['name'].lower()), None)
+                if not board:
+                    return {'success': False, 'error': f"Could not find board matching '{board_name}'. Available boards: {', '.join([b['name'] for b in boards[:5]])}"}
+                boards = [board]
+            # If no board_name or board_id, get lists from all boards
+            
+            # Collect lists from all target boards
+            all_lists = []
+            board_summaries = []
+            limit = filters.get('limit', 50)
+            
+            for board in boards[:10]:  # Limit to first 10 boards to avoid timeout
+                try:
+                    url = f"{BASE_URL}/boards/{board['id']}/lists"
+                    response = requests.get(url, params=params, timeout=REQUEST_TIMEOUT)
+                    response.raise_for_status()
+                    lists_data = response.json()
+                    all_lists.extend(lists_data)
+                    board_summaries.append(f"{len(lists_data)} lists from '{board['name']}'")
+                except Exception as e:
+                    logger.warning(f"Failed to get lists from board '{board['name']}': {e}")
+                    continue
+            
+            if not all_lists:
+                if board_name:
+                    return {'success': False, 'error': f"Could not find any lists on board '{board_name}'"}
+                else:
+                    return {'success': False, 'error': 'No lists found in your boards.'}
+            
+            # Limit results
+            all_lists = all_lists[:limit]
+            
+            summary = f"Found {len(all_lists)} lists"
+            if len(boards) == 1:
+                summary += f" on board '{boards[0]['name']}'"
+            else:
+                summary += f" across {len(boards)} boards: {', '.join(board_summaries)}"
             
             return {
                 'success': True,
-                'data': data,
-                'summary': f"Found {len(data)} lists on board '{board['name']}'"
+                'data': all_lists,
+                'summary': summary
             }
 
         elif action == 'create_card':

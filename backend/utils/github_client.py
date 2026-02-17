@@ -17,11 +17,16 @@ GITHUB_API_BASE = "https://api.github.com"
 
 def _get_headers(token: str) -> dict:
     """Get headers for GitHub API requests."""
-    return {
-        "Authorization": f"token {token}",
+    # GitHub accepts both "token" and "Bearer" formats
+    # Using "Bearer" as it's the modern standard
+    auth_header = f"Bearer {token}" if token else None
+    headers = {
         "Accept": "application/vnd.github.v3+json",
         "User-Agent": "DataBridge-AI"
     }
+    if auth_header:
+        headers["Authorization"] = auth_header
+    return headers
 
 
 def validate_token(token: str) -> dict:
@@ -90,8 +95,22 @@ def fetch_repos(token: str, filters: dict = None) -> dict:
             timeout=15
         )
         
-        if response.status_code != 200:
-            return {'data': [], 'count': 0, 'error': f'API error: {response.status_code}'}
+        if response.status_code == 401:
+            error_msg = response.json().get('message', 'Unauthorized')
+            return {
+                'data': [], 
+                'count': 0, 
+                'error': f'Authentication failed (401): {error_msg}. Please check your GitHub token is valid and has the required permissions.'
+            }
+        elif response.status_code == 404:
+            return {
+                'data': [], 
+                'count': 0, 
+                'error': f'Repository not found. Please check the repository name and that you have access to it.'
+            }
+        elif response.status_code != 200:
+            error_msg = response.json().get('message', f'API error: {response.status_code}')
+            return {'data': [], 'count': 0, 'error': f'GitHub API error ({response.status_code}): {error_msg}'}
         
         repos = response.json()
         data = []
@@ -249,8 +268,22 @@ def fetch_commits(token: str, owner: str, repo: str, filters: dict = None) -> di
             timeout=15
         )
         
-        if response.status_code != 200:
-            return {'data': [], 'count': 0, 'error': f'API error: {response.status_code}'}
+        if response.status_code == 401:
+            error_msg = response.json().get('message', 'Unauthorized')
+            return {
+                'data': [], 
+                'count': 0, 
+                'error': f'Authentication failed (401): {error_msg}. Please check your GitHub token is valid and has the required permissions.'
+            }
+        elif response.status_code == 404:
+            return {
+                'data': [], 
+                'count': 0, 
+                'error': f'Repository not found: {owner}/{repo}. Please check the repository name and that you have access to it.'
+            }
+        elif response.status_code != 200:
+            error_msg = response.json().get('message', f'API error: {response.status_code}')
+            return {'data': [], 'count': 0, 'error': f'GitHub API error ({response.status_code}): {error_msg}'}
         
         commits = response.json()
         data = []
@@ -308,8 +341,22 @@ def fetch_pull_requests(token: str, owner: str, repo: str, filters: dict = None)
             timeout=15
         )
         
-        if response.status_code != 200:
-            return {'data': [], 'count': 0, 'error': f'API error: {response.status_code}'}
+        if response.status_code == 401:
+            error_msg = response.json().get('message', 'Unauthorized')
+            return {
+                'data': [], 
+                'count': 0, 
+                'error': f'Authentication failed (401): {error_msg}. Please check your GitHub token is valid and has the required permissions.'
+            }
+        elif response.status_code == 404:
+            return {
+                'data': [], 
+                'count': 0, 
+                'error': f'Repository not found. Please check the repository name and that you have access to it.'
+            }
+        elif response.status_code != 200:
+            error_msg = response.json().get('message', f'API error: {response.status_code}')
+            return {'data': [], 'count': 0, 'error': f'GitHub API error ({response.status_code}): {error_msg}'}
         
         prs = response.json()
         data = []
@@ -380,8 +427,22 @@ def fetch_issues(token: str, owner: str, repo: str, filters: dict = None) -> dic
             timeout=15
         )
         
-        if response.status_code != 200:
-            return {'data': [], 'count': 0, 'error': f'API error: {response.status_code}'}
+        if response.status_code == 401:
+            error_msg = response.json().get('message', 'Unauthorized')
+            return {
+                'data': [], 
+                'count': 0, 
+                'error': f'Authentication failed (401): {error_msg}. Please check your GitHub token is valid and has the required permissions.'
+            }
+        elif response.status_code == 404:
+            return {
+                'data': [], 
+                'count': 0, 
+                'error': f'Repository not found. Please check the repository name and that you have access to it.'
+            }
+        elif response.status_code != 200:
+            error_msg = response.json().get('message', f'API error: {response.status_code}')
+            return {'data': [], 'count': 0, 'error': f'GitHub API error ({response.status_code}): {error_msg}'}
         
         issues = response.json()
         data = []

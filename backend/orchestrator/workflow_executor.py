@@ -606,7 +606,14 @@ class WorkflowExecutor:
             
             # GitHub client returns {'data': [...], 'count': N, 'error': '...'}
             if result.get('error'):
-                raise RuntimeError(result.get('error'))
+                error_msg = result.get('error', 'Unknown error')
+                # Provide more helpful error messages
+                if '401' in error_msg or 'Authentication' in error_msg or 'Unauthorized' in error_msg:
+                    raise RuntimeError(f"GitHub authentication failed: {error_msg}. Please check your GitHub token is valid and has the required permissions. Go to Settings > Platforms and reconnect your GitHub account.")
+                elif '404' in error_msg or 'not found' in error_msg.lower():
+                    raise RuntimeError(f"Repository not found: {error_msg}. Please check the repository name is correct (e.g., 'owner/repo-name' or just 'repo-name' if it's your own repo).")
+                else:
+                    raise RuntimeError(f"GitHub API error: {error_msg}")
             return result.get('data', [])
         
         elif platform == "trello":

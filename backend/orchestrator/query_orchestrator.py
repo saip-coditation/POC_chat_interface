@@ -78,15 +78,25 @@ def _try_fallback_knowledge(query: str) -> Optional[str]:
 
 
 def _maybe_seed_local_docs(collection, embeddings, coll_name: str) -> None:
-    """Lazy-seed documents_local with full knowledge (RENDER_KNOWLEDGE) when empty."""
-    if coll_name != "documents_local":
-        return
+    """
+    Lazy-seed collection with full knowledge (RENDER_KNOWLEDGE) when empty.
+    Works for both 'documents' (OpenAI) and 'documents_local' (local embeddings).
+    """
     try:
         count = collection.count()
         if count > 0:
-            return
+            return  # Already seeded
+        
         from orchestrator.render_knowledge import RENDER_KNOWLEDGE
-        local_emb = embeddings._get_local() if hasattr(embeddings, "_get_local") else embeddings
+        
+        # Use appropriate embeddings based on collection name
+        if coll_name == "documents_local":
+            # For local embeddings fallback
+            local_emb = embeddings._get_local() if hasattr(embeddings, "_get_local") else embeddings
+        else:
+            # For regular OpenAI embeddings (local development)
+            local_emb = embeddings
+        
         docs, ids, metas = [], [], []
         for i, entry in enumerate(RENDER_KNOWLEDGE):
             text = entry["answer"]
@@ -94,12 +104,18 @@ def _maybe_seed_local_docs(collection, embeddings, coll_name: str) -> None:
             docs.append(text)
             ids.append(f"rag_doc_{i}_{first_kw}")
             metas.append({"title": f"Knowledge: {first_kw}", "platform": "knowledge"})
+        
         if docs:
-            vecs = local_emb.embed_batch(docs)
-            collection.add(ids=ids, embeddings=vecs, documents=docs, metadatas=metas)
-            logger.info(f"Seeded documents_local with {len(docs)} RAG docs")
+            try:
+                vecs = local_emb.embed_batch(docs)
+                collection.add(ids=ids, embeddings=vecs, documents=docs, metadatas=metas)
+                logger.info(f"Seeded {coll_name} with {len(docs)} RAG docs")
+            except Exception as embed_err:
+                # If embedding fails (e.g. OpenAI API key missing), log and continue
+                # Fallback knowledge will be used instead
+                logger.warning(f"Failed to generate embeddings for seed: {embed_err}")
     except Exception as e:
-        logger.warning(f"Lazy seed of documents_local failed: {e}")
+        logger.warning(f"Lazy seed of {coll_name} failed: {e}")
 
 
 @dataclass
@@ -1266,6 +1282,17 @@ class QueryOrchestrator:
                             logger.info(f"[QUERY PARAMS] Extracted Trello card name via regex: {card_candidate}")
                             break
         
+        # Clean up: Remove "Trello" as board_name for get_lists if it was incorrectly extracted
+        if inputs.get('tool_id') == 'get_lists' or (inputs.get('action') == 'get_lists'):
+            board_name = inputs.get('board_name') or (inputs.get('filters', {}).get('board_name') if inputs.get('filters') else None)
+            if board_name and board_name.lower() in ['trello', 'in trello']:
+                # Remove Trello as board_name - get_lists should work without board_name (gets from all boards)
+                if 'board_name' in inputs:
+                    del inputs['board_name']
+                if inputs.get('filters') and 'board_name' in inputs['filters']:
+                    del inputs['filters']['board_name']
+                logger.info("[QUERY PARAMS] Removed 'Trello' as board_name for get_lists action - will get lists from all boards")
+        
         return inputs
 
     def _handle_knowledge_query(self, query: str, context: OrchestratorContext) -> OrchestratorResult:
@@ -1605,10 +1632,13 @@ CONTENT RULES:
                 )
                 answer = response.choices[0].message.content
             except Exception as synth_e:
-                # OpenAI unreachable (e.g. Render): return retrieved RAG context as answer
+                # OpenAI unreachable or auth error (e.g. Render): return retrieved RAG context as answer
                 err_lower = str(synth_e).lower()
-                if "connection" in err_lower or "timeout" in err_lower or "apiconnectionerror" in err_lower:
-                    logger.warning(f"Synthesis failed (API unreachable), returning retrieved context: {synth_e}")
+                err_str = str(synth_e)
+                if ("connection" in err_lower or "timeout" in err_lower or "apiconnectionerror" in err_lower or 
+                    "401" in err_str or "unauthorized" in err_lower or "authentication" in err_lower or
+                    "invalid" in err_lower and "api" in err_lower):
+                    logger.warning(f"Synthesis failed (API error: {synth_e}), returning retrieved context")
                     answer = context_text.strip() if context_text.strip() else "\n\n".join(results["documents"][0][:3]) if results.get("documents") else "No content retrieved."
                 else:
                     raise
@@ -1633,11 +1663,17 @@ CONTENT RULES:
                     summary=fallback.split("\n")[0] if fallback else "Knowledge answer",
                     workflow_used="knowledge_search_fallback",
                 )
-            hint = (
-                " Set OPENAI_API_KEY in your environment (e.g. Render dashboard) and redeploy."
-                if "embedding" in str(e).lower()
-                else ""
-            )
+            # Provide helpful hints based on error type
+            err_lower = str(e).lower()
+            err_str = str(e)
+            hint = ""
+            if "401" in err_str or "unauthorized" in err_lower:
+                hint = " OPENAI_API_KEY is invalid or expired. Check your API key in settings."
+            elif "embedding" in err_lower:
+                hint = " Set OPENAI_API_KEY in your environment (e.g. Render dashboard) and redeploy."
+            elif "connection" in err_lower:
+                hint = " OpenAI API is unreachable. Using keyword-based answers instead."
+            
             return OrchestratorResult(
                 success=False,
                 error=f"Error processing knowledge query: {str(e)}.{hint}",

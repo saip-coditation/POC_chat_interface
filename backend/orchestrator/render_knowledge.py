@@ -7,7 +7,7 @@ from typing import Optional
 # List of {keywords, answer}. First match wins.
 RENDER_KNOWLEDGE = [
     {
-        "keywords": ["clone", "cloning", "clone a repo", "clone repository", "how do i clone", "how to clone", "push code", "push to github", "how to push", "push in github", "push code in github"],
+        "keywords": ["clone", "cloning", "clone a repo", "clone repository", "how do i clone", "how to clone", "push code", "push to github", "how to push", "push in github", "push code in github", "push", "github", "git push", "upload code", "upload to github", "send code", "deploy code"],
         "answer": """**How to Clone a Repository (Git/GitHub)**
 
 1. **Basic command:** `git clone <repository-url>`
@@ -159,8 +159,21 @@ Best Practice: 3-5 lists to start; keep cards focused."""
 
 def get_render_answer(query: str) -> Optional[str]:
     """Return the first matching knowledge answer for the query, or None."""
+    import re
     q = query.lower().strip()
+    # Normalize: remove punctuation, extra spaces, keep only alphanumeric and spaces
+    q_normalized = re.sub(r'[^\w\s]', ' ', q)
+    q_normalized = " ".join(q_normalized.split())
+    
     for entry in RENDER_KNOWLEDGE:
-        if any(kw in q for kw in entry["keywords"]):
-            return entry["answer"]
+        # Check if any keyword matches
+        for kw in entry["keywords"]:
+            kw_lower = kw.lower().strip()
+            # Simple substring match (most flexible)
+            if kw_lower in q_normalized:
+                return entry["answer"]
+            # Also check if query contains all words from keyword (for multi-word keywords)
+            kw_words = kw_lower.split()
+            if len(kw_words) > 1 and all(word in q_normalized for word in kw_words):
+                return entry["answer"]
     return None

@@ -4,6 +4,11 @@
 
 const App = {
   /**
+   * Chart instances storage
+   */
+  chartInstances: {},
+
+  /**
    * Initialize the application
    */
   async init() {
@@ -12,6 +17,9 @@ const App = {
 
     // Initialize state (checks for existing session)
     await State.init();
+
+    // Initialize chart instances storage
+    App.chartInstances = {};
 
     App.bindEvents();
     App.handleInitialRoute();
@@ -97,6 +105,11 @@ const App = {
       // Handle keyboard navigation (autocomplete + query history Up/Down)
       queryInput.addEventListener('keydown', (e) => {
         App.handleQueryInputKeydown(e);
+      });
+      
+      // Show suggestions on focus (always show default patterns)
+      queryInput.addEventListener('focus', () => {
+        App.handleAutocomplete(queryInput.value || '');
       });
       
       // Hide autocomplete on blur (with delay to allow clicks)
@@ -930,7 +943,39 @@ const App = {
       const chartId = `chart-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
       const chartContainer = document.createElement('div');
       chartContainer.className = 'chat-chart-container';
-      chartContainer.innerHTML = `<canvas id="${chartId}"></canvas>`;
+      
+      // Add chart controls wrapper
+      const controlsId = `chart-controls-${chartId}`;
+      chartContainer.innerHTML = `
+        <div class="chart-controls" id="${controlsId}">
+          <div class="chart-controls__left">
+            <select class="chart-type-selector" data-chart-id="${chartId}" title="Change chart type">
+              <option value="bar">Bar</option>
+              <option value="line">Line</option>
+              <option value="pie">Pie</option>
+              <option value="doughnut">Doughnut</option>
+              <option value="scatter">Scatter</option>
+            </select>
+          </div>
+          <div class="chart-controls__right">
+            <button class="chart-btn" data-action="export" data-chart-id="${chartId}" title="Export chart">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+            </button>
+            <button class="chart-btn" data-action="reset-zoom" data-chart-id="${chartId}" title="Reset zoom" style="display: none;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="M21 21l-4.35-4.35"></path>
+                <line x1="8" y1="11" x2="14" y2="11"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <canvas id="${chartId}"></canvas>
+      `;
 
       // Append to the message content
       const contentEl = messageEl.querySelector('.chat-message__content');
@@ -980,7 +1025,16 @@ const App = {
         setTimeout(() => {
           const canvas = document.getElementById(chartId);
           if (canvas) {
-            App.renderChart(chartId, msg.rawData.chart);
+            // Set default chart type in selector
+            const selector = chartContainer.querySelector('.chart-type-selector');
+            if (selector && msg.rawData.chart.type) {
+              selector.value = msg.rawData.chart.type;
+            }
+            
+            // Store chart config for type switching
+            chartContainer.dataset.chartConfig = JSON.stringify(msg.rawData.chart);
+            
+            App.renderChart(chartId, msg.rawData.chart, chartContainer);
           } else {
             console.error('[DEBUG] Canvas element not found for chart:', chartId);
           }
@@ -1899,16 +1953,10 @@ const App = {
       clearTimeout(App.autocompleteState.debounceTimer);
     }
 
-    // Hide if query is too short
-    if (!queryText || queryText.trim().length < 2) {
-      App.hideAutocomplete();
-      return;
-    }
-
-    // Debounce API call
+    // Debounce API call (show suggestions even for empty/short queries)
     App.autocompleteState.debounceTimer = setTimeout(async () => {
       try {
-        const result = await API.getQuerySuggestions(queryText.trim(), 10);
+        const result = await API.getQuerySuggestions(queryText ? queryText.trim() : '', 15);
         App.autocompleteState.suggestions = result.suggestions || [];
         App.autocompleteState.selectedIndex = -1;
         
@@ -2161,59 +2209,113 @@ const App = {
    * Render Chart.js Chart
    */
   /**
-   * Render Chart.js Chart with Modern UI
+   * Render Chart.js Chart with Modern UI and Enhanced Features
    */
-  renderChart(canvasId, config) {
+  renderChart(canvasId, config, container = null) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
+    
+    // Store chart instance for controls
+    if (!App.chartInstances) {
+      App.chartInstances = {};
+    }
+    
+    // Register plugins if available (graceful fallback if plugins not loaded)
+    try {
+      if (typeof Chart !== 'undefined') {
+        // Register zoom plugin if available
+        if (typeof zoomPlugin !== 'undefined' && Chart.register) {
+          Chart.register(zoomPlugin);
+        }
+        // Register datalabels plugin if available
+        if (typeof ChartDataLabels !== 'undefined' && Chart.register) {
+          Chart.register(ChartDataLabels);
+        }
+      }
+    } catch (e) {
+      console.warn('Chart plugins not available, continuing without advanced features:', e);
+    }
 
-    // Global Aesthetics
+    // Global Aesthetics - Enhanced for better visibility
     Chart.defaults.font.family = "'Inter', sans-serif";
-    Chart.defaults.color = 'rgba(255, 255, 255, 0.7)';
-    Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.05)';
+    Chart.defaults.font.size = 13;
+    Chart.defaults.font.weight = '500';
+    Chart.defaults.color = '#e5e7eb'; // Much brighter for better visibility
+    Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
 
     // Enhance Datasets with Gradients and Styling
     if (config.data && config.data.datasets) {
       config.data.datasets.forEach((ds, i) => {
-        // Generate a color based on index if not set
+        // Attractive vibrant color palette
         const colors = [
           ['#6366f1', '#8b5cf6'], // Indigo -> Purple
           ['#10b981', '#3b82f6'], // Emerald -> Blue
           ['#f59e0b', '#ef4444'], // Amber -> Red
+          ['#ec4899', '#f43f5e'], // Pink -> Rose
+          ['#06b6d4', '#14b8a6'], // Cyan -> Teal
+          ['#a855f7', '#d946ef'], // Purple -> Fuchsia
+          ['#f97316', '#eab308'], // Orange -> Yellow
+          ['#22c55e', '#84cc16'], // Green -> Lime
         ];
         const colorPair = colors[i % colors.length];
 
-        if (config.type === 'bar' || config.type === 'line') {
-          // Create Gradient
+        if (config.type === 'bar') {
+          // Use different colors for each bar
+          const vibrantColors = [
+            '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316',
+            '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#a855f7',
+            '#14b8a6', '#f59e0b', '#ef4444', '#d946ef', '#84cc16'
+          ];
+          
+          // Assign different color to each data point
+          if (ds.data && Array.isArray(ds.data)) {
+            ds.backgroundColor = ds.data.map((_, index) => vibrantColors[index % vibrantColors.length]);
+            ds.borderColor = ds.data.map((_, index) => vibrantColors[index % vibrantColors.length]);
+          } else {
+            ds.backgroundColor = vibrantColors[i % vibrantColors.length];
+            ds.borderColor = vibrantColors[i % vibrantColors.length];
+          }
+          
+          ds.borderWidth = 2;
+          ds.borderRadius = 8; // Rounded top corners
+          ds.barPercentage = 0.7;
+        } else if (config.type === 'line') {
+          // Create Gradient for line charts
           const gradient = ctx.createLinearGradient(0, 0, 0, 400);
           gradient.addColorStop(0, colorPair[0]);
           gradient.addColorStop(1, 'rgba(99, 102, 241, 0.05)'); // Fade to transparent
 
           ds.backgroundColor = gradient;
           ds.borderColor = colorPair[0];
-          ds.borderWidth = config.type === 'line' ? 3 : 0;
-          ds.borderRadius = 8; // Rounded top corners
-          ds.barPercentage = 0.6;
-
-          // Shadow for Lines
-          if (config.type === 'line') {
-            ds.tension = 0.4; // Smooth curve
-            ds.fill = true;
-            ds.pointBackgroundColor = '#1f2937';
-            ds.pointBorderColor = colorPair[0];
-            ds.pointBorderWidth = 2;
-            ds.pointRadius = 4;
-            ds.pointHoverRadius = 6;
-          }
+          ds.borderWidth = 3;
+          ds.tension = 0.4; // Smooth curve
+          ds.fill = true;
+          ds.pointBackgroundColor = colorPair[0];
+          ds.pointBorderColor = '#ffffff';
+          ds.pointBorderWidth = 3; // Thicker border for visibility
+          ds.pointRadius = 5; // Larger points
+          ds.pointHoverRadius = 7;
         } else if (config.type === 'doughnut' || config.type === 'pie') {
-          ds.borderWidth = 0;
+          ds.borderWidth = 2;
+          ds.borderColor = '#1f2937'; // Dark border for contrast
           ds.hoverOffset = 20;
           ds.borderRadius = 5;
-          // Use palette for doughnut segments
+          // Vibrant attractive palette for pie/doughnut
           ds.backgroundColor = [
-            '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6'
+            '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316', 
+            '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#a855f7',
+            '#14b8a6', '#f59e0b', '#ef4444', '#d946ef'
           ];
+        } else if (config.type === 'scatter') {
+          ds.backgroundColor = colorPair[0];
+          ds.borderColor = colorPair[0];
+          ds.pointBackgroundColor = colorPair[0];
+          ds.pointBorderColor = '#ffffff';
+          ds.pointBorderWidth = 3;
+          ds.pointRadius = 6;
+          ds.pointHoverRadius = 8;
+          ds.showLine = false;
         }
       });
     }
@@ -2258,25 +2360,27 @@ const App = {
         const titleLines = tooltipModel.title || [];
         const bodyLines = tooltipModel.body.map(b => b.lines);
 
-        let innerHtml = '<div style="margin-bottom: 8px; font-weight: 600; font-size: 13px; color: #a5b4fc;">';
+        let innerHtml = '<div style="margin-bottom: 10px; font-weight: 700; font-size: 14px; color: #c7d2fe;">';
         titleLines.forEach(title => {
           innerHtml += `<span>${title}</span>`;
         });
         innerHtml += '</div>';
 
-        innerHtml += '<div style="display: flex; flex-direction: column; gap: 4px;">';
+        innerHtml += '<div style="display: flex; flex-direction: column; gap: 6px;">';
         bodyLines.forEach((body, i) => {
           const colors = tooltipModel.labelColors[i];
-          const span = `<span style="display:inline-block; width: 8px; height: 8px; border-radius: 50%; background:${colors.backgroundColor}; margin-right: 8px;"></span>`;
+          const span = `<span style="display:inline-block; width: 10px; height: 10px; border-radius: 50%; background:${colors.backgroundColor}; margin-right: 10px; border: 2px solid rgba(255,255,255,0.3);"></span>`;
           // Clean up value (remove "Subject: " prefix if present)
           let text = body[0];
           if (text.includes(':')) {
             const parts = text.split(':');
             if (parts.length > 1) {
-              text = `<span style="color: #94a3b8;">${parts[0]}:</span> <span style="font-weight: 500; color: #fff;">${parts.slice(1).join(':')}</span>`;
+              text = `<span style="color: #cbd5e1; font-weight: 500;">${parts[0]}:</span> <span style="font-weight: 600; color: #ffffff;">${parts.slice(1).join(':')}</span>`;
             }
+          } else {
+            text = `<span style="font-weight: 600; color: #ffffff;">${text}</span>`;
           }
-          innerHtml += `<div style="font-size: 13px; display: flex; align-items: center;">${span}${text}</div>`;
+          innerHtml += `<div style="font-size: 14px; display: flex; align-items: center; line-height: 1.5;">${span}${text}</div>`;
         });
         innerHtml += '</div>';
 
@@ -2292,72 +2396,268 @@ const App = {
       tooltipEl.style.top = position.top + window.pageYOffset + tooltipModel.caretY - 10 + 'px'; // Slight offset up
     };
 
+    // Enhanced options with zoom and pan
+    const chartOptions = {
+      ...config.options,
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+          legend: {
+            display: config.type === 'doughnut' || config.type === 'pie',
+            position: 'bottom',
+            labels: {
+              usePointStyle: true,
+              padding: 20,
+              boxWidth: 10,
+              color: '#e5e7eb', // Much brighter for visibility
+              font: { 
+                size: 13,
+                weight: '500',
+                family: "'Inter', sans-serif"
+              }
+            }
+          },
+        tooltip: {
+          enabled: false, // Disable default
+          external: externalTooltipHandler
+        },
+        // Zoom plugin (optional - only if plugin is loaded)
+        ...(typeof zoomPlugin !== 'undefined' ? {
+          zoom: {
+            zoom: {
+              wheel: {
+                enabled: true,
+              },
+              pinch: {
+                enabled: true
+              },
+              mode: 'xy',
+            },
+            pan: {
+              enabled: true,
+              mode: 'xy',
+            }
+          }
+        } : {}),
+        // DataLabels plugin (optional - only if plugin is loaded)
+        ...(typeof ChartDataLabels !== 'undefined' ? {
+            datalabels: {
+              display: config.type === 'pie' || config.type === 'doughnut' ? 'auto' : false,
+              color: '#ffffff',
+              font: {
+                size: 13,
+                weight: '700',
+                family: "'Inter', sans-serif"
+              },
+              textStrokeColor: '#000000',
+              textStrokeWidth: 2,
+              textShadowBlur: 4,
+              textShadowColor: 'rgba(0, 0, 0, 0.8)',
+              formatter: (value, ctx) => {
+                if (config.type === 'pie' || config.type === 'doughnut') {
+                  const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                  const percentage = ((value / total) * 100).toFixed(1);
+                  return percentage > 5 ? percentage + '%' : '';
+                }
+                return '';
+              }
+            }
+        } : {})
+      },
+      scales: (config.type === 'doughnut' || config.type === 'pie') ? {} : {
+            y: {
+              beginAtZero: config.type !== 'scatter',
+              grid: {
+                color: 'rgba(255, 255, 255, 0.1)', // Brighter grid
+                drawBorder: false,
+                borderDash: [5, 5],
+                lineWidth: 1
+              },
+              ticks: {
+                padding: 12,
+                color: '#e5e7eb', // Much brighter
+                font: { 
+                  size: 13,
+                  weight: '500',
+                  family: "'Inter', sans-serif"
+                },
+                backdropColor: 'rgba(17, 24, 39, 0.7)',
+                backdropPadding: 4
+              },
+              border: { 
+                display: true,
+                color: 'rgba(255, 255, 255, 0.2)' // Visible border
+              }
+            },
+            x: {
+              grid: { 
+                display: true,
+                color: 'rgba(255, 255, 255, 0.05)',
+                lineWidth: 1
+              },
+              ticks: {
+                padding: 12,
+                color: '#e5e7eb', // Much brighter
+                font: { 
+                  size: 13,
+                  weight: '500',
+                  family: "'Inter', sans-serif"
+                },
+                backdropColor: 'rgba(17, 24, 39, 0.7)',
+                backdropPadding: 4
+              },
+              border: { 
+                display: true,
+                color: 'rgba(255, 255, 255, 0.2)' // Visible border
+              }
+            }
+          },
+      layout: {
+        padding: 20
+      },
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
+      animation: {
+        duration: 1000,
+        easing: 'easeOutQuart'
+      },
+      onClick: (event, elements) => {
+        if (elements.length > 0) {
+          const element = elements[0];
+          const datasetIndex = element.datasetIndex;
+          const index = element.index;
+          const value = config.data.datasets[datasetIndex].data[index];
+          const label = config.data.labels[index];
+          console.log('Chart clicked:', { label, value, datasetIndex, index });
+          // You can add custom click handlers here
+        }
+      }
+    };
+
+    // Set canvas background for better export and display
+    canvas.style.backgroundColor = '#111827'; // Dark background matching UI
+    canvas.style.borderRadius = '0 0 var(--radius-lg) var(--radius-lg)';
+    
     try {
-      new Chart(ctx, {
+      const chartInstance = new Chart(ctx, {
         type: config.type,
         data: config.data,
         options: {
-          ...config.options,
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              display: config.type === 'doughnut' || config.type === 'pie',
-              position: 'bottom',
-              labels: {
-                usePointStyle: true,
-                padding: 20,
-                boxWidth: 8,
-                color: '#9ca3af',
-                font: { size: 12 }
-              }
-            },
-            tooltip: {
-              enabled: false, // Disable default
-              external: externalTooltipHandler
-            }
-          },
-          scales: (config.type === 'doughnut' || config.type === 'pie') ? {} : {
-            y: {
-              beginAtZero: true,
-              grid: {
-                color: 'rgba(255, 255, 255, 0.05)',
-                drawBorder: false,
-                borderDash: [5, 5] // Dashed grid lines
-              },
-              ticks: {
-                padding: 10,
-                color: '#9ca3af',
-                font: { size: 11 }
-              },
-              border: { display: false } // Remove axis line
-            },
-            x: {
-              grid: { display: false },
-              ticks: {
-                padding: 10,
-                color: '#9ca3af',
-                font: { size: 11 }
-              },
-              border: { display: false }
-            }
-          },
-          layout: {
-            padding: 20
-          },
-          interaction: {
-            mode: 'index',
-            intersect: false,
-          },
-          animation: {
-            duration: 1000,
-            easing: 'easeOutQuart'
+          ...chartOptions,
+          // Ensure proper background for export
+          backgroundColor: '#111827',
+          onResize: (chart, size) => {
+            // Maintain quality on resize
+            chart.canvas.style.imageRendering = 'crisp-edges';
           }
         }
       });
+      
+      // Store chart instance
+      App.chartInstances[canvasId] = chartInstance;
+      
+      // Setup chart controls if container provided
+      if (container) {
+        App.setupChartControls(canvasId, container, config);
+      }
+      
+      return chartInstance;
     } catch (e) {
       console.error("Chart render error:", e);
+      // Fallback to basic chart if advanced features fail
+      try {
+        return new Chart(ctx, {
+          type: config.type,
+          data: config.data,
+          options: {
+            responsive: true,
+            maintainAspectRatio: false
+          }
+        });
+      } catch (fallbackError) {
+        console.error("Chart fallback render error:", fallbackError);
+      }
     }
+  },
+
+  /**
+   * Setup chart controls (type selector, export, zoom reset)
+   */
+  setupChartControls(chartId, container, originalConfig) {
+    // Chart type selector
+    const typeSelector = container.querySelector('.chart-type-selector');
+    if (typeSelector) {
+      typeSelector.addEventListener('change', (e) => {
+        const newType = e.target.value;
+        const chartInstance = App.chartInstances[chartId];
+        if (chartInstance) {
+          chartInstance.config.type = newType;
+          chartInstance.update();
+        }
+      });
+    }
+
+    // Export button
+    const exportBtn = container.querySelector('[data-action="export"]');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', () => {
+        const chartInstance = App.chartInstances[chartId];
+        if (chartInstance) {
+          // Export with high quality and proper background
+          const canvas = chartInstance.canvas;
+          const originalBackgroundColor = chartInstance.options.plugins?.legend?.labels?.color || '#e5e7eb';
+          
+          // Create a temporary canvas with higher resolution
+          const exportCanvas = document.createElement('canvas');
+          const scale = 2; // 2x resolution for crisp export
+          exportCanvas.width = canvas.width * scale;
+          exportCanvas.height = canvas.height * scale;
+          const exportCtx = exportCanvas.getContext('2d');
+          
+          // Fill with dark background (matching the UI)
+          exportCtx.fillStyle = '#111827'; // Dark background
+          exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+          
+          // Draw the chart scaled up
+          exportCtx.scale(scale, scale);
+          exportCtx.drawImage(canvas, 0, 0);
+          
+          // Convert to image with high quality
+          const url = exportCanvas.toDataURL('image/png', 1.0); // Maximum quality
+          const link = document.createElement('a');
+          link.download = `chart-${Date.now()}.png`;
+          link.href = url;
+          link.click();
+        }
+      });
+    }
+
+      // Reset zoom button (only if zoom plugin is available)
+      const resetZoomBtn = container.querySelector('[data-action="reset-zoom"]');
+      if (resetZoomBtn && App.chartInstances[chartId] && typeof zoomPlugin !== 'undefined') {
+        const chartInstance = App.chartInstances[chartId];
+        
+        // Show reset button when zoomed
+        chartInstance.canvas.addEventListener('wheel', () => {
+          setTimeout(() => {
+            if (chartInstance.scales && (chartInstance.scales.x?.min !== undefined || chartInstance.scales.y?.min !== undefined)) {
+              resetZoomBtn.style.display = 'inline-flex';
+            }
+          }, 100);
+        });
+
+        resetZoomBtn.addEventListener('click', () => {
+          if (chartInstance && chartInstance.resetZoom) {
+            chartInstance.resetZoom();
+            resetZoomBtn.style.display = 'none';
+          }
+        });
+      } else if (resetZoomBtn) {
+        // Hide reset button if zoom plugin not available
+        resetZoomBtn.style.display = 'none';
+      }
   },
 
   /**
@@ -2391,7 +2691,8 @@ const App = {
     setTimeout(() => {
       toast.remove();
     }, 5000);
-  }
+  },
+
 };
 
 // Initialize app when DOM is ready

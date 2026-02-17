@@ -3,7 +3,7 @@ Query Serializers
 """
 
 from rest_framework import serializers
-from .models import QueryLog, SavedQuery
+from .models import QueryLog, SavedQuery, Workflow, WorkflowExecution, QuerySuggestion
 
 
 class ProcessQuerySerializer(serializers.Serializer):
@@ -50,3 +50,56 @@ class SavedQueryCreateSerializer(serializers.Serializer):
     name = serializers.CharField(min_length=1, max_length=120)
     query_text = serializers.CharField(min_length=1, max_length=500)
     platform = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+
+class WorkflowSerializer(serializers.ModelSerializer):
+    """Serializer for workflows."""
+    
+    class Meta:
+        model = Workflow
+        fields = [
+            'id', 'name', 'description', 'status', 'definition',
+            'created_at', 'updated_at', 'last_run_at',
+            'run_count', 'success_count', 'failure_count'
+        ]
+        read_only_fields = [
+            'id', 'created_at', 'updated_at', 'last_run_at',
+            'run_count', 'success_count', 'failure_count'
+        ]
+
+
+class WorkflowCreateSerializer(serializers.Serializer):
+    """Serializer for creating a workflow."""
+    
+    name = serializers.CharField(min_length=1, max_length=200)
+    description = serializers.CharField(required=False, allow_blank=True)
+    definition = serializers.DictField()
+
+
+class WorkflowExecutionSerializer(serializers.ModelSerializer):
+    """Serializer for workflow executions."""
+    
+    workflow_name = serializers.CharField(source='workflow.name', read_only=True)
+    
+    class Meta:
+        model = WorkflowExecution
+        fields = [
+            'id', 'workflow', 'workflow_name', 'status',
+            'input_data', 'output_data', 'step_results',
+            'error_message', 'failed_step',
+            'started_at', 'completed_at', 'execution_time_ms'
+        ]
+        read_only_fields = [
+            'id', 'started_at', 'completed_at', 'execution_time_ms'
+        ]
+
+
+class QuerySuggestionSerializer(serializers.Serializer):
+    """Serializer for query suggestions."""
+    
+    query_text = serializers.CharField()
+    platform = serializers.CharField(required=False, allow_blank=True)
+    suggestion_type = serializers.CharField()
+    confidence_score = serializers.FloatField()
+    source_query_id = serializers.IntegerField(required=False, allow_null=True)
+    usage_count = serializers.IntegerField(required=False)

@@ -236,7 +236,7 @@ Respond with valid JSON only."""
 Available actions:
 - list_boards: [filters: limit, organization]
 - list_cards: [filters: board_name (REQUIRED if no board_id), list_name, limit]
-- get_lists: [filters: board_name (REQUIRED), limit]
+- get_lists: [filters: board_name (OPTIONAL - if not provided, gets lists from all boards), limit]
 - create_card: [filters: name (REQUIRED), list_name (REQUIRED), board_name (REQUIRED), desc]
 - delete_card: [filters: name (REQUIRED), board_name (REQUIRED), list_name]
 
@@ -244,6 +244,8 @@ RULES:
 1. "My boards" -> action: "list_boards".
 2. "Cards on 'Marketing' board" -> action: "list_cards", filters: {board_name: "Marketing"}.
 3. "Tasks in 'To Do' list" -> action: "list_cards", filters: {list_name: "To Do"}.
+4. "Get all lists" or "Show all lists" -> action: "get_lists", filters: {} (no board_name - gets from all boards).
+5. "Get lists from 'Marketing' board" -> action: "get_lists", filters: {board_name: "Marketing"}.
 4. "Create card" or "add card" or "new card" -> action: "create_card". Extract card name, list_name, and board_name from query.
 5. "Create card 'Fix Bug' in 'Backlog' list on 'Dev' board" -> action: "create_card", filters: {name: "Fix Bug", list_name: "Backlog", board_name: "Dev"}.
 6. "Create a card called 'My Task' in 'To Do' list inside 'testing' board" -> action: "create_card", filters: {name: "My Task", list_name: "To Do", board_name: "testing"}.
