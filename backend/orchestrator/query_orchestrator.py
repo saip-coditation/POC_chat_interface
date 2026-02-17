@@ -1435,19 +1435,20 @@ CONTENT RULES:
         # General knowledge query - use RAG (on Render: use direct fallback only for fast deploy)
         try:
             if os.getenv("RENDER"):
-                # Render: skip RAG/embeddings; use only direct fallback answers (no heavy deps)
-                fallback = _try_fallback_knowledge(query)
-                if fallback:
+                # Render: use seed_platform_knowledge-style answers (no RAG/embeddings)
+                from orchestrator.render_knowledge import get_render_answer
+                answer = get_render_answer(query)
+                if answer:
                     return OrchestratorResult(
                         success=True,
-                        data=[{"answer": fallback, "sources": ["knowledge base"], "type": "knowledge"}],
+                        data=[{"answer": answer, "sources": ["knowledge base"], "type": "knowledge"}],
                         intent={"intent_type": "KNOWLEDGE_QUERY", "platform": "fallback"},
-                        summary=fallback.split("\n")[0] if fallback else "Answer",
+                        summary=answer.split("\n")[0] if answer else "Answer",
                         workflow_used="knowledge_direct",
                     )
                 return OrchestratorResult(
                     success=False,
-                    error="I can only answer a few questions here. Try: \"How do I clone a repository?\"",
+                    error="I can answer questions about: clone/push to GitHub, Stripe (payments, refunds, subscriptions), Salesforce (leads, pipeline), GitHub (PRs, commits), Zoho deals, Trello boards. Try one of those.",
                     intent={"intent_type": "KNOWLEDGE_QUERY"},
                 )
             # 1. Embed query
