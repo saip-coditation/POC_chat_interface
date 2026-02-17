@@ -248,7 +248,12 @@ class FallbackEmbeddings:
             if _is_connection_error(e):
                 logger.warning("Switching to local embeddings (OpenAI unreachable)")
                 self._use_local = True
-                return self._get_local().embed_batch(texts, task_type)
+                try:
+                    return self._get_local().embed_batch(texts, task_type)
+                except ImportError:
+                    # sentence-transformers not installed (e.g. Render light build)
+                    self._use_local = False
+                    raise e  # Re-raise so orchestrator can use keyword fallback
             raise
 
     def _get_local(self) -> LocalEmbeddings:

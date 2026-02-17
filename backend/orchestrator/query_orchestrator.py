@@ -10,6 +10,7 @@ Main entry point that ties all components together:
 """
 
 import logging
+import os
 import re
 from typing import Dict, List, Any, Optional, Callable
 from dataclasses import dataclass, field
@@ -1431,8 +1432,24 @@ CONTENT RULES:
                     workflow_used="trello_knowledge"
                 )
         
-        # General knowledge query - use RAG
+        # General knowledge query - use RAG (on Render: use direct fallback only for fast deploy)
         try:
+            if os.getenv("RENDER"):
+                # Render: skip RAG/embeddings; use only direct fallback answers (no heavy deps)
+                fallback = _try_fallback_knowledge(query)
+                if fallback:
+                    return OrchestratorResult(
+                        success=True,
+                        data=[{"answer": fallback, "sources": ["knowledge base"], "type": "knowledge"}],
+                        intent={"intent_type": "KNOWLEDGE_QUERY", "platform": "fallback"},
+                        summary=fallback.split("\n")[0] if fallback else "Answer",
+                        workflow_used="knowledge_direct",
+                    )
+                return OrchestratorResult(
+                    success=False,
+                    error="I can only answer a few questions here. Try: \"How do I clone a repository?\"",
+                    intent={"intent_type": "KNOWLEDGE_QUERY"},
+                )
             # 1. Embed query
             from rag.embeddings import get_embeddings
             embeddings = get_embeddings()
