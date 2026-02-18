@@ -333,25 +333,88 @@
               </div>
             </div>
 
-            <!-- Instructions Section -->
+            <!-- Connection Wizard -->
+            <div class="connection-wizard" id="connection-wizard" style="margin-bottom: var(--space-6);">
+              <!-- Step Indicator -->
+              <div class="wizard-steps" style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: var(--space-6); position: relative; padding: 0 var(--space-4);">
+                <!-- Connecting line -->
+                <div class="wizard-line" style="position: absolute; top: 20px; left: 10%; right: 10%; height: 2px; background: var(--border-light); z-index: 0;"></div>
+                
+                <div class="wizard-step-indicator active" data-step="1" style="flex: 1; display: flex; flex-direction: column; align-items: center; position: relative; z-index: 1;">
+                  <div class="step-circle" style="width: 40px; height: 40px; border-radius: 50%; background: var(--color-primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; margin-bottom: var(--space-2); border: 3px solid var(--bg-primary);">1</div>
+                  <span class="step-label" style="font-size: var(--font-size-xs); color: var(--text-primary); text-align: center; font-weight: 500;">Get Token</span>
+                </div>
+                <div class="wizard-step-indicator" data-step="2" style="flex: 1; display: flex; flex-direction: column; align-items: center; position: relative; z-index: 1;">
+                  <div class="step-circle" style="width: 40px; height: 40px; border-radius: 50%; background: var(--bg-card); border: 3px solid var(--border-default); color: var(--text-secondary); display: flex; align-items: center; justify-content: center; font-weight: 600; margin-bottom: var(--space-2);">2</div>
+                  <span class="step-label" style="font-size: var(--font-size-xs); color: var(--text-secondary); text-align: center;">Paste Token</span>
+                </div>
+                <div class="wizard-step-indicator" data-step="3" style="flex: 1; display: flex; flex-direction: column; align-items: center; position: relative; z-index: 1;">
+                  <div class="step-circle" style="width: 40px; height: 40px; border-radius: 50%; background: var(--bg-card); border: 3px solid var(--border-default); color: var(--text-secondary); display: flex; align-items: center; justify-content: center; font-weight: 600; margin-bottom: var(--space-2);">3</div>
+                  <span class="step-label" style="font-size: var(--font-size-xs); color: var(--text-secondary); text-align: center;">Connect</span>
+                </div>
+              </div>
+
+              <!-- Step 1: Get Token -->
+              <div class="wizard-step-content active" data-step="1" id="wizard-step-1">
+                <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(99, 102, 241, 0.05) 100%); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: var(--radius-lg); padding: var(--space-5);">
+                  <h3 style="margin: 0 0 var(--space-3) 0; font-size: var(--font-size-lg); font-weight: 600;">Step 1: Get Your API Token</h3>
+                  <p style="margin: 0 0 var(--space-4) 0; color: var(--text-secondary); font-size: var(--font-size-sm);">Click the button below to open your platform's token page in a new tab.</p>
+                  <div id="quick-connect-buttons" style="display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3);">
+                    <!-- Buttons will be injected by JS -->
+                  </div>
+                  <button type="button" class="btn btn--secondary btn--sm" onclick="App.nextWizardStep()" id="wizard-next-1" style="margin-top: var(--space-2);">
+                    I have my token →
+                  </button>
+                </div>
+              </div>
+
+              <!-- Step 2: Paste Token -->
+              <div class="wizard-step-content hidden" data-step="2" id="wizard-step-2">
+                <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(99, 102, 241, 0.05) 100%); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: var(--radius-lg); padding: var(--space-5);">
+                  <h3 style="margin: 0 0 var(--space-3) 0; font-size: var(--font-size-lg); font-weight: 600;">Step 2: Paste Your Token</h3>
+                  <p style="margin: 0 0 var(--space-4) 0; color: var(--text-secondary); font-size: var(--font-size-sm);">Paste your API token in the field below. We'll automatically detect it from your clipboard if available.</p>
+                  
+                  <!-- Clipboard detection -->
+                  <div id="clipboard-detection" class="hidden" style="background: var(--bg-card); border: 1px solid var(--color-success); border-radius: var(--radius-md); padding: var(--space-3); margin-bottom: var(--space-3); display: flex; align-items: center; gap: var(--space-2);">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" stroke-width="2">
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                      <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    <span style="color: var(--color-success); font-size: var(--font-size-sm);">Token detected in clipboard! Click to paste.</span>
+                    <button type="button" class="btn btn--sm" onclick="App.pasteFromClipboard()" style="margin-left: auto; padding: var(--space-1) var(--space-3);">Paste</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Step 3: Connect -->
+              <div class="wizard-step-content hidden" data-step="3" id="wizard-step-3">
+                <div style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(34, 197, 94, 0.05) 100%); border: 1px solid rgba(34, 197, 94, 0.2); border-radius: var(--radius-lg); padding: var(--space-5);">
+                  <h3 style="margin: 0 0 var(--space-3) 0; font-size: var(--font-size-lg); font-weight: 600;">Step 3: Connect</h3>
+                  <p style="margin: 0 0 var(--space-4) 0; color: var(--text-secondary); font-size: var(--font-size-sm);">Review your token and click Connect to finish.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Instructions Section (Collapsed by default) -->
             <div class="connect-instructions" id="connect-instructions"
-              style="background: var(--color-gray-50); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-6);">
+              style="background: var(--bg-card); border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-6);">
               <div
-                style="display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); cursor: pointer;"
-                onclick="this.parentElement.classList.toggle('expanded')">
+                style="display: flex; align-items: center; gap: var(--space-2); cursor: pointer;"
+                onclick="const content = document.getElementById('instructions-content'); const chevron = document.getElementById('instructions-chevron'); if (content.style.display === 'none') { content.style.display = 'block'; if (chevron) chevron.style.transform = 'rotate(180deg)'; } else { content.style.display = 'none'; if (chevron) chevron.style.transform = 'rotate(0deg)'; }">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)"
                   stroke-width="2">
                   <circle cx="12" cy="12" r="10" />
                   <line x1="12" y1="16" x2="12" y2="12" />
                   <line x1="12" y1="8" x2="12.01" y2="8" />
                 </svg>
-                <strong style="color: var(--color-primary); font-size: var(--font-size-sm);">How to get your API
-                  Token</strong>
+                <strong style="color: var(--color-primary); font-size: var(--font-size-sm);">Need help? View detailed instructions</strong>
                 <svg id="instructions-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none"
                   stroke="currentColor" stroke-width="2" style="margin-left: auto; transition: transform 0.2s;">
                   <polyline points="6 9 12 15 18 9" />
                 </svg>
               </div>
+              
+              <div id="instructions-content" style="display: none; margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--border-light);">
 
               <!-- Stripe Instructions -->
               <div id="stripe-instructions" class="hidden"
@@ -544,21 +607,32 @@
                     autocomplete="off">
                 </div>
               </div>
+              </div>
             </div>
 
             <form id="connect-form">
               <div class="form-group">
                 <label class="form-label" for="api-key" id="api-key-label">API Secret Key</label>
-                <input type="text" id="api-key" class="form-input" placeholder="Enter your API token..." required
-                  autocomplete="off">
+                <div style="position: relative;">
+                  <input type="text" id="api-key" class="form-input" placeholder="Enter your API token..." required
+                    autocomplete="off" style="padding-right: 100px;">
+                  <button type="button" class="btn btn--ghost btn--sm" onclick="App.pasteFromClipboard()" 
+                    style="position: absolute; right: var(--space-2); top: 50%; transform: translateY(-50%); padding: var(--space-1) var(--space-3); font-size: var(--font-size-xs);"
+                    title="Paste from clipboard">
+                    📋 Paste
+                  </button>
+                </div>
                 <p class="form-help" id="api-key-help">Your credentials are encrypted and never shared with AI services.
                 </p>
               </div>
 
               <div class="flex gap-4">
-                <button type="button" class="btn btn--secondary" id="connect-cancel">Cancel</button>
+                <button type="button" class="btn btn--secondary" id="connect-cancel" onclick="App.previousWizardStep()">← Back</button>
+                <button type="button" class="btn btn--ghost" id="test-connection-btn" onclick="App.testConnection()" style="display: none;">
+                  🧪 Test Connection
+                </button>
                 <button type="submit" class="btn btn--primary" id="connect-submit" style="flex: 1;">
-                  Validate & Connect
+                  <span id="connect-submit-text">Validate & Connect</span>
                 </button>
               </div>
             </form>
@@ -832,10 +906,9 @@
   <script src="static/js/api.js"></script>
   <script src="static/js/app.js"></script>
 
-  <!-- Salesforce Authorization Code Modal (Moved to end of body to prevent stacking context issues) -->
+  <!-- Salesforce Authorization Code Modal -->
   <div id="sf-code-modal" class="modal hidden">
-    <!-- No backdrop -->
-    <div class="modal__content" style="max-width: 460px; border: 1px solid var(--border-light);">
+    <div class="modal__content" style="max-width: 500px; width: 90%;">
       <!-- Header with gradient background -->
       <div
         style="background: linear-gradient(135deg, #00A1E0 0%, #1798C1 100%); padding: var(--space-5); border-radius: var(--radius-xl) var(--radius-xl) 0 0;">

@@ -71,21 +71,50 @@ class ConnectPlatformView(APIView):
                 if ':' not in api_key:
                     return Response({
                         'success': False,
-                        'error': 'Invalid format. Please enter "API_KEY:TOKEN"'
+                        'error': 'Invalid format. Please enter "API_KEY:TOKEN" (separated by colon, no spaces)'
                     }, status=status.HTTP_400_BAD_REQUEST)
                 
-                t_key, t_token = api_key.split(':', 1)
-                validation = trello_client.validate_credentials(t_key.strip(), t_token.strip())
+                # Split on first colon only (in case token contains colons)
+                parts = api_key.split(':', 1)
+                if len(parts) != 2:
+                    return Response({
+                        'success': False,
+                        'error': 'Invalid format. Please enter "API_KEY:TOKEN" (separated by colon)'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                t_key = parts[0].strip()
+                t_token = parts[1].strip()
+                
+                # Validate format
+                if not t_key or not t_token:
+                    return Response({
+                        'success': False,
+                        'error': 'Both API Key and Token are required'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                logger.info(f"[TRELLO] Attempting to validate - Key length: {len(t_key)}, Token length: {len(t_token)}")
+                
+                validation = trello_client.validate_credentials(t_key, t_token)
+                
+                logger.info(f"[TRELLO] Validation result: {validation.get('valid')}, Error: {validation.get('error', 'None')}")
                 
                 # If valid, we store the TOKEN as the secret, and KEY in metadata
                 if validation.get('valid'):
                     # OVERWRITE api_key with just the token for storage
-                    api_key = t_token.strip() 
-                    metadata_update['trello_key'] = t_key.strip()
+                    api_key = t_token
+                    metadata_update['trello_key'] = t_key
+                    logger.info(f"[TRELLO] Credentials validated successfully - Username: {validation.get('username')}")
+                else:
+                    # Return detailed error
+                    error_msg = validation.get('error', 'Invalid credentials')
+                    logger.error(f"[TRELLO] Validation failed: {error_msg}")
                     
-            except Exception as e:
+            except ValueError as e:
                 logger.error(f"Trello parsing error: {e}")
-                validation = {'valid': False, 'error': 'Failed to parse Trello credentials'}
+                validation = {'valid': False, 'error': f'Failed to parse Trello credentials: {str(e)}'}
+            except Exception as e:
+                logger.error(f"Trello connection error: {e}", exc_info=True)
+                validation = {'valid': False, 'error': f'Failed to connect to Trello: {str(e)}'}
         elif platform == 'salesforce':
             # Salesforce: Accept ACCESS_TOKEN:INSTANCE_URL (from Authorization Code flow)
             try:

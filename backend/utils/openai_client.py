@@ -430,8 +430,13 @@ def generate_chart_config(query: str, data: dict, platform: str) -> dict:
     import logging
     logger = logging.getLogger(__name__)
     
+    logger.info(f"[CHART] ========== generate_chart_config START ==========")
     logger.info(f"[CHART] generate_chart_config called - query: '{query}', platform: '{platform}'")
     logger.info(f"[CHART] data type: {type(data)}, keys: {data.keys() if isinstance(data, dict) else 'N/A'}")
+    if isinstance(data, list):
+        logger.info(f"[CHART] data is list with {len(data)} items")
+        if len(data) > 0:
+            logger.info(f"[CHART] First item: {data[0]}")
     
     # Simple heuristic checks first
     query_lower = query.lower()
@@ -534,6 +539,416 @@ def generate_chart_config(query: str, data: dict, platform: str) -> dict:
         else:
             logger.info(f"[CHART] No items found in data")
     
+    # Special Handler for Salesforce Opportunities/Deals and Zoho Deals
+    # Check for deal/opportunity data structure regardless of platform detection
+    items = None
+    if isinstance(data, list) and len(data) > 0:
+        items = data
+        logger.info(f"[CHART] Data is direct list: {len(items)} items")
+    elif isinstance(data, dict):
+        # Check for nested 'data' key first
+        if isinstance(data.get('data'), list) and len(data.get('data', [])) > 0:
+            items = data.get('data', [])
+            logger.info(f"[CHART] Found items in data['data']: {len(items)} items")
+        # Check if dict values are lists (workflow executor returns context["steps"] as dict)
+        elif len(data) > 0:
+            # Try to find a list value in the dict (common for tool workflows)
+            for key, value in data.items():
+                if isinstance(value, list) and len(value) > 0:
+                    items = value
+                    logger.info(f"[CHART] Found items in data['{key}']: {len(items)} items")
+                    break
+        if not items:
+            logger.info(f"[CHART] Data is dict but no list found. Dict keys: {list(data.keys()) if isinstance(data, dict) else 'N/A'}")
+    
+    # Check if this looks like deal/opportunity data (Salesforce or Zoho)
+    is_salesforce_opportunity = False
+    is_zoho_deal = False
+    
+    # Pre-check for deal/opportunity queries to prevent early return
+    is_zoho_query = platform == 'zoho' or 'zoho' in query_lower
+    is_deal_query = 'deal' in query_lower
+    is_opportunity_query = 'opportunity' in query_lower
+    
+    if items and len(items) > 0:
+        sample = items[0] if items else {}
+        if isinstance(sample, dict):
+            # Check for Salesforce opportunity indicators
+            has_sf_amount = 'Amount' in sample
+            has_sf_name = 'Name' in sample
+            has_sf_stage = 'StageName' in sample
+            
+            # Check for Zoho deal indicators
+            has_zoho_amount = 'Amount' in sample or 'amount' in sample
+            has_zoho_name = 'Deal_Name' in sample or 'name' in sample
+            has_zoho_stage = 'Stage' in sample or 'stage' in sample
+            
+            # If we have Amount + Name + StageName, it's likely Salesforce opportunities
+            if has_sf_amount and has_sf_name and has_sf_stage:
+                is_salesforce_opportunity = True
+                logger.info(f"[CHART] Detected Salesforce opportunity data structure")
+            
+            # If we have Amount + Deal_Name + Stage, it's likely Zoho deals
+            if has_zoho_amount and has_zoho_name and has_zoho_stage:
+                is_zoho_deal = True
+                logger.info(f"[CHART] Detected Zoho deal data structure")
+    
+    # Generate chart for Salesforce opportunities if detected OR if platform is salesforce
+    if (platform == 'salesforce' or is_salesforce_opportunity) and items and len(items) > 0 and (is_financial or is_breakdown or 'deal' in query_lower or 'opportunity' in query_lower):
+        logger.info(f"[CHART] Salesforce opportunity/deal query detected - platform: {platform}, is_salesforce_opportunity: {is_salesforce_opportunity}")
+        sample = items[0] if items else {}
+        logger.info(f"[CHART] Sample item keys: {sample.keys() if isinstance(sample, dict) else 'Not a dict'}")
+        
+        # Check if we have Amount field (Salesforce opportunities)
+        has_amount = 'Amount' in sample if isinstance(sample, dict) else False
+        has_name = 'Name' in sample if isinstance(sample, dict) else False
+        has_stage = 'StageName' in sample if isinstance(sample, dict) else False
+        
+        logger.info(f"[CHART] Salesforce check - has_amount: {has_amount}, has_name: {has_name}, has_stage: {has_stage}")
+        
+        if has_amount and has_name:
+            # Generate chart for opportunities/deals
+            labels = []
+            values = []
+                
+            for item in items[:15]:  # Limit to 15 items for better visualization
+                # Get deal name
+                label = item.get('Name') or item.get('name') or item.get('Deal_Name') or f"Deal {len(labels) + 1}"
+                if len(str(label)) > 25:
+                    label = str(label)[:22] + '...'
+                labels.append(str(label))
+                
+                # Get amount
+                val = item.get('Amount') or item.get('amount') or 0
+                try:
+                    values.append(float(val))
+                except (ValueError, TypeError):
+                    values.append(0)
+            
+            if len(values) > 0 and any(v > 0 for v in values):
+                logger.info(f"[CHART] Generating Salesforce opportunity chart with {len(labels)} items")
+                
+                # If breakdown requested, create pie chart by stage
+                if is_breakdown and has_stage:
+                    stage_counts = {}
+                    stage_amounts = {}
+                    stage_key = 'StageName' if 'StageName' in sample else 'stage'
+                    
+                    for item in items:
+                        stage = item.get('StageName') or item.get('stage') or item.get('Stage') or 'Unknown'
+                        amount = float(item.get('Amount') or item.get('amount') or 0)
+                        
+                        if stage not in stage_amounts:
+                            stage_amounts[stage] = 0
+                        stage_amounts[stage] += amount
+                    
+                    labels = list(stage_amounts.keys())
+                    values = list(stage_amounts.values())
+                    
+                    palette = [
+                        '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316',
+                        '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#a855f7',
+                        '#14b8a6', '#f59e0b', '#ef4444', '#d946ef'
+                    ]
+                    colors = [palette[i % len(palette)] for i in range(len(labels))]
+                    
+                    chart_config = {
+                        'type': 'pie',
+                        'data': {
+                            'labels': labels,
+                            'datasets': [{
+                                'label': 'Deal Value by Stage (USD)',
+                                'data': values,
+                                'backgroundColor': colors,
+                                'borderWidth': 2,
+                                'borderColor': '#1f2937'
+                            }]
+                        },
+                        'options': {
+                            'responsive': True,
+                            'maintainAspectRatio': False,
+                            'plugins': {
+                                'title': {'display': True, 'text': 'Deals Breakdown by Stage'},
+                                'legend': {'display': True, 'position': 'bottom'}
+                            }
+                        }
+                    }
+                    logger.info(f"[CHART] Returning Salesforce breakdown chart: {chart_config.get('type')}")
+                    return chart_config
+                else:
+                    # Bar chart for individual deals
+                    chart_config = {
+                        'type': 'bar',
+                        'data': {
+                            'labels': labels,
+                            'datasets': [{
+                                'label': 'Deal Value (USD)',
+                                'data': values,
+                                'backgroundColor': 'rgba(99, 102, 241, 0.8)',
+                                'borderColor': 'rgba(99, 102, 241, 1)',
+                                'borderWidth': 2,
+                                'borderRadius': 8
+                            }]
+                        },
+                        'options': {
+                            'responsive': True,
+                            'maintainAspectRatio': False,
+                            'plugins': {
+                                'title': {'display': True, 'text': 'Salesforce Deals Analysis'},
+                                'legend': {'display': False}
+                            },
+                            'scales': {
+                                'y': {
+                                    'beginAtZero': True,
+                                    'ticks': {
+                                        'callback': 'function(value) { return "$" + value.toLocaleString(); }'
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    logger.info(f"[CHART] Returning Salesforce bar chart: {chart_config.get('type')}")
+                    return chart_config
+            else:
+                logger.info(f"[CHART] No valid Salesforce amounts found")
+        else:
+            logger.info(f"[CHART] Salesforce items don't have Amount/Name fields")
+    elif items and len(items) == 0:
+        logger.info(f"[CHART] No Salesforce items found in data")
+    
+    # Generate chart for Zoho deals if detected OR if platform is zoho OR if query mentions zoho/deal
+    # Always generate chart for Zoho deals queries (less restrictive condition)
+    # is_zoho_query and is_deal_query are already defined above
+    
+    # More lenient: if query mentions zoho and deals, or if we detected zoho deal structure, generate chart
+    # Also check if platform is zoho or query contains zoho/deal keywords
+    logger.info(f"[CHART] Zoho chart check - is_zoho_query: {is_zoho_query}, is_zoho_deal: {is_zoho_deal}, items: {items is not None}, len: {len(items) if items else 0}")
+    if (is_zoho_query or is_zoho_deal) and items and len(items) > 0:
+        logger.info(f"[CHART] Zoho deal query detected - platform: {platform}, is_zoho_query: {is_zoho_query}, is_zoho_deal: {is_zoho_deal}, query: {query}")
+        sample = items[0] if items else {}
+        logger.info(f"[CHART] Sample item keys: {sample.keys() if isinstance(sample, dict) else 'Not a dict'}")
+        logger.info(f"[CHART] Sample item: {sample}")
+        
+        # Check if we have Amount field (Zoho deals) - handle both uppercase and lowercase
+        has_amount = False
+        has_name = False
+        has_stage = False
+        
+        if isinstance(sample, dict):
+            has_amount = 'Amount' in sample or 'amount' in sample
+            has_name = 'Deal_Name' in sample or 'name' in sample
+            has_stage = 'Stage' in sample or 'stage' in sample
+        
+        logger.info(f"[CHART] Zoho check - has_amount: {has_amount}, has_name: {has_name}, has_stage: {has_stage}")
+        
+        # Generate chart if we have amount and name (stage is optional)
+        if has_amount and has_name:
+            # Generate chart for Zoho deals
+            labels = []
+            values = []
+            
+            for item in items[:15]:  # Limit to 15 items for better visualization
+                # Get deal name
+                label = item.get('Deal_Name') or item.get('name') or item.get('Deal Name') or f"Deal {len(labels) + 1}"
+                if len(str(label)) > 25:
+                    label = str(label)[:22] + '...'
+                labels.append(str(label))
+                
+                # Get amount - handle various formats including ₹ symbol
+                val = item.get('Amount') or item.get('amount') or 0
+                try:
+                    if isinstance(val, str):
+                        # Remove currency symbols (₹, $), commas, spaces
+                        val = val.replace('₹', '').replace('$', '').replace(',', '').replace(' ', '').strip()
+                    values.append(float(val))
+                except (ValueError, TypeError):
+                    values.append(0)
+            
+            # Always generate chart if we have labels, even if values are 0
+            if len(labels) > 0:
+                logger.info(f"[CHART] Generating Zoho deal chart with {len(labels)} items, values: {values[:5]}...")
+                
+                # If breakdown requested OR if we have stage data, create pie chart by stage
+                if (is_breakdown or has_stage) and has_stage:
+                    stage_amounts = {}
+                    stage_key = 'Stage' if 'Stage' in sample else 'stage'
+                    
+                    for item in items:
+                        stage = item.get('Stage') or item.get('stage') or 'Unknown'
+                        amount = item.get('Amount') or item.get('amount') or 0
+                        try:
+                            if isinstance(amount, str):
+                                amount = amount.replace('₹', '').replace('$', '').replace(',', '').replace(' ', '').strip()
+                            amount = float(amount)
+                        except (ValueError, TypeError):
+                            amount = 0
+                        
+                        if stage not in stage_amounts:
+                            stage_amounts[stage] = 0
+                        stage_amounts[stage] += amount
+                    
+                    labels = list(stage_amounts.keys())
+                    values = list(stage_amounts.values())
+                    
+                    palette = [
+                        '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316',
+                        '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#a855f7',
+                        '#14b8a6', '#f59e0b', '#ef4444', '#d946ef'
+                    ]
+                    colors = [palette[i % len(palette)] for i in range(len(labels))]
+                    
+                    chart_config = {
+                        'type': 'pie',
+                        'data': {
+                            'labels': labels,
+                            'datasets': [{
+                                'label': 'Deal Value by Stage (USD)',
+                                'data': values,
+                                'backgroundColor': colors,
+                                'borderWidth': 2,
+                                'borderColor': '#1f2937'
+                            }]
+                        },
+                        'options': {
+                            'responsive': True,
+                            'maintainAspectRatio': False,
+                            'plugins': {
+                                'title': {'display': True, 'text': 'Zoho Deals Breakdown by Stage'},
+                                'legend': {'display': True, 'position': 'bottom'}
+                            }
+                        }
+                    }
+                    logger.info(f"[CHART] Returning Zoho breakdown chart: {chart_config.get('type')}")
+                    return chart_config
+                else:
+                    # Default to pie chart for Zoho deals (as shown in the image)
+                    # Group by stage if available, otherwise show individual deals
+                    if has_stage and len(items) > 3:
+                        # Group deals by stage for pie chart
+                        stage_amounts = {}
+                        for item in items:
+                            stage = item.get('Stage') or item.get('stage') or 'Unknown'
+                            amount = item.get('Amount') or item.get('amount') or 0
+                            try:
+                                if isinstance(amount, str):
+                                    # Handle ₹ symbol and other currency symbols
+                                    amount = amount.replace('₹', '').replace('$', '').replace(',', '').replace(' ', '').strip()
+                                amount = float(amount) if amount else 0
+                            except (ValueError, TypeError):
+                                amount = 0
+                            
+                            if stage not in stage_amounts:
+                                stage_amounts[stage] = 0
+                            stage_amounts[stage] += amount
+                        
+                        labels = list(stage_amounts.keys())
+                        values = list(stage_amounts.values())
+                        
+                        palette = [
+                            '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316',
+                            '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#a855f7',
+                            '#14b8a6', '#f59e0b', '#ef4444', '#d946ef'
+                        ]
+                        colors = [palette[i % len(palette)] for i in range(len(labels))]
+                        
+                        chart_config = {
+                            'type': 'pie',
+                            'data': {
+                                'labels': labels,
+                                'datasets': [{
+                                    'label': 'Deal Value by Stage',
+                                    'data': values,
+                                    'backgroundColor': colors,
+                                    'borderWidth': 2,
+                                    'borderColor': '#1f2937'
+                                }]
+                            },
+                            'options': {
+                                'responsive': True,
+                                'maintainAspectRatio': False,
+                                'plugins': {
+                                    'title': {'display': True, 'text': 'Zoho Deals by Stage'},
+                                    'legend': {'display': True, 'position': 'bottom'}
+                                }
+                            }
+                        }
+                        logger.info(f"[CHART] Returning Zoho pie chart by stage: {chart_config.get('type')}")
+                        return chart_config
+                    else:
+                        # Bar chart for individual deals
+                        chart_config = {
+                            'type': 'bar',
+                            'data': {
+                                'labels': labels,
+                                'datasets': [{
+                                    'label': 'Deal Value (USD)',
+                                    'data': values if len(values) > 0 else [1] * len(labels),
+                                    'backgroundColor': 'rgba(99, 102, 241, 0.8)',
+                                    'borderColor': 'rgba(99, 102, 241, 1)',
+                                    'borderWidth': 2,
+                                    'borderRadius': 8
+                                }]
+                            },
+                            'options': {
+                                'responsive': True,
+                                'maintainAspectRatio': False,
+                                'plugins': {
+                                    'title': {'display': True, 'text': 'Zoho Deals Analysis'},
+                                    'legend': {'display': False}
+                                },
+                                'scales': {
+                                    'y': {
+                                        'beginAtZero': True,
+                                        'ticks': {
+                                            'callback': 'function(value) { return "$" + value.toLocaleString(); }'
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        logger.info(f"[CHART] Returning Zoho bar chart: {chart_config.get('type')}")
+                        return chart_config
+            else:
+                logger.info(f"[CHART] No labels found for Zoho deals")
+                # Still generate a chart even if amounts are 0, using count instead
+                if len(labels) > 0:
+                    logger.info(f"[CHART] Generating Zoho deal count chart instead")
+                    chart_config = {
+                        'type': 'bar',
+                        'data': {
+                            'labels': labels[:10],  # Limit to 10 for better visualization
+                            'datasets': [{
+                                'label': 'Deal Count',
+                                'data': [1] * len(labels[:10]),  # Count of 1 per deal
+                                'backgroundColor': 'rgba(99, 102, 241, 0.8)',
+                                'borderColor': 'rgba(99, 102, 241, 1)',
+                                'borderWidth': 2,
+                                'borderRadius': 8
+                            }]
+                        },
+                        'options': {
+                            'responsive': True,
+                            'maintainAspectRatio': False,
+                            'plugins': {
+                                'title': {'display': True, 'text': 'Zoho Deals'},
+                                'legend': {'display': False}
+                            },
+                            'scales': {
+                                'y': {'beginAtZero': True}
+                            }
+                        }
+                    }
+                    logger.info(f"[CHART] Returning Zoho count chart")
+                    return chart_config
+        else:
+            logger.info(f"[CHART] Zoho items don't have Amount/name fields - sample keys: {list(sample.keys()) if isinstance(sample, dict) else 'Not a dict'}")
+    else:
+        if platform == 'zoho' or 'zoho' in query_lower:
+            logger.info(f"[CHART] Zoho platform detected but Zoho chart conditions not met")
+            logger.info(f"[CHART] - platform: {platform}, is_zoho_query: {is_zoho_query}, is_zoho_deal: {is_zoho_deal}")
+            logger.info(f"[CHART] - items: {items is not None}, len: {len(items) if items else 0}")
+            logger.info(f"[CHART] - query: {query}")
+    
     # Special Handler for Stripe Revenue (Single Value)
     # Only use this if we don't have invoice list data above
     # Always generate a chart for revenue queries to provide better UX
@@ -572,7 +987,18 @@ def generate_chart_config(query: str, data: dict, platform: str) -> dict:
             }
          }
     
-    if not (is_trend or is_breakdown or is_financial or wants_chart):
+    # Don't return None early if we have Zoho/Salesforce deals - they should always get charts
+    # Only return None early if it's not a deal/opportunity query and doesn't match any chart criteria
+    # is_zoho_query, is_deal_query, is_opportunity_query are already defined above
+    is_deal_or_opportunity_query = (is_zoho_deal or is_salesforce_opportunity or 
+                                   (is_zoho_query and is_deal_query) or
+                                   (is_deal_query and ('zoho' in query_lower or 'salesforce' in query_lower)) or
+                                   is_opportunity_query)
+    
+    logger.info(f"[CHART] Early return check - is_trend: {is_trend}, is_breakdown: {is_breakdown}, is_financial: {is_financial}, wants_chart: {wants_chart}, is_deal_or_opportunity_query: {is_deal_or_opportunity_query}")
+    
+    if not (is_trend or is_breakdown or is_financial or wants_chart or is_deal_or_opportunity_query):
+        logger.info(f"[CHART] Returning None early - no chart criteria met")
         return None
 
     try:
@@ -607,21 +1033,20 @@ def generate_chart_config(query: str, data: dict, platform: str) -> dict:
         
         # If it's a breakdown, we want a Pie or Doughnut chart
         if is_breakdown:
-            if platform == 'zoho':
-                items = []
-                if isinstance(data, list):
-                    items = data
-                elif isinstance(data, dict):
-                    items = data.get('data', [])
+            items = []
+            if isinstance(data, list):
+                items = data
+            elif isinstance(data, dict):
+                items = data.get('data', [])
 
-                if items:
-                    counts = {}
+            if items:
+                counts = {}
                 
                 # Intelligent Key Detection
                 sample = items[0] if items else {}
                 group_key = None
                 
-                possible_keys = ['Stage', 'stage', 'Deal_Stage', 'deal_stage', 'Status', 'status', 'City', 'city', 'State', 'state']
+                possible_keys = ['Stage', 'stage', 'Deal_Stage', 'deal_stage', 'Status', 'status', 'City', 'city', 'State', 'state', 'Type', 'type', 'StageName']
                 
                 # Check explicit keys first
                 for k in possible_keys:
@@ -638,6 +1063,7 @@ def generate_chart_config(query: str, data: dict, platform: str) -> dict:
                             
                 # Fallback to 'Unknown' if absolutely nothing matches
                 target_key = group_key or 'Unknown'
+                logger.info(f"[CHART] Breakdown - group_key detected: {group_key}, using target: {target_key}")
 
                 for item in items:
                     key = item.get(target_key, 'Unknown')
@@ -706,6 +1132,7 @@ def generate_chart_config(query: str, data: dict, platform: str) -> dict:
                              item.get('Full_Name') or 
                              item.get('Last_Name') or 
                              item.get('name') or 
+                             item.get('Name') or 
                              item.get('id') or 
                              'Unknown')
                     # Truncate long labels
@@ -718,14 +1145,16 @@ def generate_chart_config(query: str, data: dict, platform: str) -> dict:
                 for item in items:
                     # Look for amount in various formats
                     val = (item.get('amount') or  # Stripe invoices
-                          item.get('Amount') or   # Zoho deals
+                          item.get('Amount') or   # Zoho deals, Salesforce opportunities
                           item.get('Annual_Revenue') or 
                           item.get('Grand_Total') or
                           item.get('amount_due') or
                           item.get('value'))
                     if val:
                         try:
-                            # Convert to float, handle string numbers
+                            # Convert to float, handle string numbers (remove $, commas)
+                            if isinstance(val, str):
+                                val = val.replace('$', '').replace(',', '').replace(' ', '').strip()
                             val_float = float(val)
                             values.append(val_float)
                         except (ValueError, TypeError):
@@ -784,6 +1213,76 @@ def generate_chart_config(query: str, data: dict, platform: str) -> dict:
         import traceback
         logger.error(f"[CHART] Traceback: {traceback.format_exc()}")
         return None
+    
+    # Final fallback: If it's a Zoho deals query and we have data, generate a simple chart
+    if (platform == 'zoho' or 'zoho' in query_lower) and 'deal' in query_lower:
+        logger.info(f"[CHART] Final fallback: Generating chart for Zoho deals query")
+        # Try to extract data one more time
+        fallback_items = None
+        if isinstance(data, list) and len(data) > 0:
+            fallback_items = data
+        elif isinstance(data, dict):
+            if isinstance(data.get('data'), list) and len(data.get('data', [])) > 0:
+                fallback_items = data.get('data', [])
+            else:
+                # Try to find any list in the dict
+                for key, value in data.items():
+                    if isinstance(value, list) and len(value) > 0:
+                        fallback_items = value
+                        break
+        
+        if fallback_items and len(fallback_items) > 0:
+            logger.info(f"[CHART] Fallback: Found {len(fallback_items)} items for Zoho deals chart")
+            labels = []
+            values = []
+            
+            for item in fallback_items[:15]:
+                if isinstance(item, dict):
+                    # Try to get name
+                    label = item.get('name') or item.get('Deal_Name') or item.get('Deal Name') or f"Deal {len(labels) + 1}"
+                    labels.append(str(label)[:25])
+                    
+                    # Try to get amount
+                    val = item.get('amount') or item.get('Amount') or 0
+                    try:
+                        if isinstance(val, str):
+                            val = val.replace('₹', '').replace('$', '').replace(',', '').replace(' ', '').strip()
+                        values.append(float(val))
+                    except (ValueError, TypeError):
+                        values.append(0)
+            
+            if len(labels) > 0:
+                # Use deal count if amounts are all 0
+                if all(v == 0 for v in values):
+                    values = [1] * len(labels)
+                
+                chart_config = {
+                    'type': 'bar',
+                    'data': {
+                        'labels': labels,
+                        'datasets': [{
+                            'label': 'Deal Value',
+                            'data': values,
+                            'backgroundColor': 'rgba(99, 102, 241, 0.8)',
+                            'borderColor': 'rgba(99, 102, 241, 1)',
+                            'borderWidth': 2,
+                            'borderRadius': 8
+                        }]
+                    },
+                    'options': {
+                        'responsive': True,
+                        'maintainAspectRatio': False,
+                        'plugins': {
+                            'title': {'display': True, 'text': 'Zoho Deals'},
+                            'legend': {'display': False}
+                        },
+                        'scales': {
+                            'y': {'beginAtZero': True}
+                        }
+                    }
+                }
+                logger.info(f"[CHART] Fallback: Returning Zoho deals chart with {len(labels)} items")
+                return chart_config
     
     logger.info("[CHART] No chart generated - conditions not met")
     return None

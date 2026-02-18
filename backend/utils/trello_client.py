@@ -18,29 +18,78 @@ def validate_credentials(api_key, token):
     Returns dict with 'valid' (bool) and 'error' (str, optional)
     """
     try:
+        # Clean and validate inputs
+        api_key = api_key.strip() if api_key else ''
+        token = token.strip() if token else ''
+        
+        if not api_key:
+            return {'valid': False, 'error': 'API Key is required'}
+        if not token:
+            return {'valid': False, 'error': 'Token is required'}
+        
+        # Log validation attempt (without exposing full credentials)
+        logger.info(f"[TRELLO] Validating credentials - API Key length: {len(api_key)}, Token length: {len(token)}")
+        logger.info(f"[TRELLO] API Key starts with: {api_key[:8]}..., Token starts with: {token[:8]}...")
+        
         url = f"{BASE_URL}/members/me"
         params = {
             'key': api_key,
             'token': token
         }
         
+        logger.info(f"[TRELLO] Making request to: {url}")
         response = requests.get(url, params=params, timeout=REQUEST_TIMEOUT)
+        
+        logger.info(f"[TRELLO] Response status: {response.status_code}")
         
         if response.status_code == 200:
             data = response.json()
+            logger.info(f"[TRELLO] Validation successful - Username: {data.get('username')}, Name: {data.get('fullName')}")
             return {
                 'valid': True, 
                 'username': data.get('username'),
                 'fullName': data.get('fullName')
             }
         elif response.status_code == 401:
-            return {'valid': False, 'error': 'Invalid API Key or Token'}
+            error_text = response.text[:200] if response.text else 'No error message'
+            logger.error(f"[TRELLO] Authentication failed (401) - {error_text}")
+            return {
+                'valid': False, 
+                'error': 'Invalid API Key or Token. Please check that both are correct and not expired.'
+            }
+        elif response.status_code == 403:
+            error_text = response.text[:200] if response.text else 'No error message'
+            logger.error(f"[TRELLO] Forbidden (403) - {error_text}")
+            return {
+                'valid': False,
+                'error': 'Access forbidden. Please check that your token has the required permissions.'
+            }
         else:
-            return {'valid': False, 'error': f'Validation failed: {response.text}'}
+            error_text = response.text[:500] if response.text else 'No error message'
+            logger.error(f"[TRELLO] Validation failed with status {response.status_code} - {error_text}")
+            return {
+                'valid': False, 
+                'error': f'Validation failed (Status {response.status_code}): {error_text[:100]}'
+            }
             
+    except requests.exceptions.Timeout:
+        logger.error("[TRELLO] Validation timeout - Trello API did not respond in time")
+        return {
+            'valid': False, 
+            'error': 'Connection timeout. Trello API is not responding. Please try again.'
+        }
+    except requests.exceptions.ConnectionError as e:
+        logger.error(f"[TRELLO] Connection error: {e}")
+        return {
+            'valid': False,
+            'error': 'Cannot connect to Trello API. Please check your internet connection.'
+        }
     except Exception as e:
-        logger.error(f"Trello validation error: {e}")
-        return {'valid': False, 'error': str(e)}
+        logger.error(f"[TRELLO] Validation error: {e}", exc_info=True)
+        return {
+            'valid': False, 
+            'error': f'Validation error: {str(e)}'
+        }
 
 def execute_query(action, filters, api_key, token):
     """

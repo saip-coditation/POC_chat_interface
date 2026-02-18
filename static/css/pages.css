@@ -1620,19 +1620,20 @@
     }
 }
 
-/* Chat Charts */
+/* Chat Charts - Enhanced for better visibility and proper sizing */
 .chat-chart-container {
     margin-top: var(--space-4);
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
-    padding: var(--space-5);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+    padding: var(--space-4);
     border-radius: var(--radius-lg);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    height: 320px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     width: 100%;
+    max-width: 100%;
     position: relative;
     overflow: hidden;
-    box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.2), var(--shadow-md);
-    backdrop-filter: blur(5px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    box-sizing: border-box;
 }
 
 .chat-message__content {

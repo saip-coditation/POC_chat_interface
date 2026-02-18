@@ -387,26 +387,73 @@ class QueryOrchestrator:
             # Skip chart generation for:
             # - Cross-platform queries (they have their own display format)
             # - Simple list queries (contacts, leads, accounts) - these are just data lookups
-            skip_chart_workflows = ["customer_overview_cross_platform", "list_contacts", "list_leads", "list_accounts", "list_opportunities", "get_contact", "get_account", "create_contact", "create_record"]
+            skip_chart_workflows = ["customer_overview_cross_platform", "list_contacts", "list_leads", "list_accounts", "get_contact", "get_account", "create_contact", "create_record"]
+            # Always allow charts for Salesforce opportunities/deals and Zoho deals queries
+            query_lower = query.lower()
+            workflow_id_lower = workflow.workflow_id.lower() if hasattr(workflow, 'workflow_id') else ""
+            is_opportunity_query = ("list_opportunities" in workflow_id_lower or "list_deals" in workflow_id_lower or 
+                                   "opportunity" in query_lower or ("deal" in query_lower and ("salesforce" in query_lower or "zoho" in query_lower)))
+            
+            # Skip chart generation only if workflow is in skip list AND it's not an opportunity/deal query
             should_generate_chart = (
                 exec_result.success and 
                 exec_result.data and 
-                workflow.workflow_id not in skip_chart_workflows and
-                not any(skip in workflow.workflow_id for skip in ["list_contacts", "list_leads", "list_accounts", "list_opportunities", "get_contact", "get_account"])
+                (workflow.workflow_id not in skip_chart_workflows or is_opportunity_query) and
+                not any(skip in workflow_id_lower for skip in ["list_contacts", "list_leads", "list_accounts", "get_contact", "get_account"])
             )
             
+            logger.info(f"[CHART DEBUG] should_generate_chart decision: {should_generate_chart}")
+            logger.info(f"[CHART DEBUG] - exec_result.success: {exec_result.success}")
+            logger.info(f"[CHART DEBUG] - exec_result.data exists: {exec_result.data is not None}")
+            logger.info(f"[CHART DEBUG] - workflow_id: {workflow.workflow_id}")
+            logger.info(f"[CHART DEBUG] - is_opportunity_query: {is_opportunity_query}")
+            logger.info(f"[CHART DEBUG] - workflow in skip list: {workflow.workflow_id in skip_chart_workflows}")
+            
             chart_config = None
-            if should_generate_chart:
+            # Get platform from intent or query analysis
+            platform_from_intent = intent.platform if hasattr(intent, 'platform') else None
+            
+            # Always try to generate chart for Zoho deals queries, even if should_generate_chart is False
+            # Check for "deal" or "deals" in query, and "zoho" in query or platform
+            is_zoho_deals_query = (
+                ("zoho" in query_lower and ("deal" in query_lower or "deals" in query_lower)) or
+                (workflow_id_lower and "list_deals" in workflow_id_lower) or
+                (platform_from_intent == 'zoho' and ("deal" in query_lower or "deals" in query_lower))
+            )
+            
+            logger.info(f"[CHART DEBUG] Chart generation check - should_generate_chart: {should_generate_chart}, is_zoho_deals_query: {is_zoho_deals_query}")
+            
+            if should_generate_chart or is_zoho_deals_query:
                 try:
                     from utils.openai_client import generate_chart_config
-                    p_name = platform or "stripe" if "get_revenue" in workflow.workflow_id else "unknown"
+                    # Better platform detection - use intent.platform first, then query analysis
+                    detected_platform = platform_from_intent
+                    if not detected_platform:
+                        if "salesforce" in query_lower or "opportunity" in query_lower or ("deal" in query_lower and "salesforce" in query_lower):
+                            detected_platform = "salesforce"
+                        elif "zoho" in query_lower or ("deal" in query_lower and "zoho" in query_lower):
+                            detected_platform = "zoho"
+                        elif "stripe" in query_lower or "invoice" in query_lower or "get_revenue" in workflow.workflow_id:
+                            detected_platform = "stripe"
+                        elif "github" in query_lower:
+                            detected_platform = "github"
+                        elif "trello" in query_lower:
+                            detected_platform = "trello"
+                        else:
+                            detected_platform = "unknown"
+                    
                     # Debug logging
-                    logger.info(f"[CHART DEBUG] Generating chart for query: {query}, platform: {p_name}")
-                    logger.info(f"[CHART DEBUG] Data structure: {type(exec_result.data)}, keys: {exec_result.data.keys() if isinstance(exec_result.data, dict) else 'N/A (not dict)'}")
-                    chart_config = generate_chart_config(query, exec_result.data, p_name)
+                    logger.info(f"[CHART DEBUG] Generating chart for query: {query}, platform: {detected_platform}, workflow_id: {workflow.workflow_id}")
+                    logger.info(f"[CHART DEBUG] should_generate_chart: {should_generate_chart}, is_opportunity_query: {is_opportunity_query}, is_zoho_deals_query: {is_zoho_deals_query}")
+                    logger.info(f"[CHART DEBUG] Data structure: {type(exec_result.data)}, is_list: {isinstance(exec_result.data, list)}, len: {len(exec_result.data) if isinstance(exec_result.data, list) else 'N/A'}")
+                    if isinstance(exec_result.data, list) and len(exec_result.data) > 0:
+                        logger.info(f"[CHART DEBUG] First item keys: {list(exec_result.data[0].keys()) if isinstance(exec_result.data[0], dict) else 'Not a dict'}")
+                        logger.info(f"[CHART DEBUG] First item: {exec_result.data[0]}")
+                    chart_config = generate_chart_config(query, exec_result.data, detected_platform)
                     if chart_config:
                         context.log(f"Chart config generated successfully: {chart_config.get('type')}")
                         logger.info(f"[CHART DEBUG] Chart config created: {chart_config.get('type')}")
+                        logger.info(f"[CHART DEBUG] Chart config keys: {list(chart_config.keys())}")
                     else:
                         context.log("Chart config generation returned None")
                         logger.info("[CHART DEBUG] Chart config generation returned None")
@@ -434,7 +481,7 @@ class QueryOrchestrator:
             if inputs:
                 intent_data['params'] = inputs
                 
-            return OrchestratorResult(
+            result = OrchestratorResult(
                 success=exec_result.success,
                 data=exec_result.data,
                 error=exec_result.error,
@@ -445,6 +492,15 @@ class QueryOrchestrator:
                 summary=exec_result.summary,
                 chart=chart_config
             )
+            
+            # Debug logging for chart
+            logger.info(f"[CHART DEBUG] OrchestratorResult created - chart is None: {result.chart is None}")
+            if result.chart:
+                logger.info(f"[CHART DEBUG] Chart type in result: {result.chart.get('type') if isinstance(result.chart, dict) else type(result.chart)}")
+            else:
+                logger.warning(f"[CHART DEBUG] Chart is None in OrchestratorResult! chart_config was: {chart_config}")
+            
+            return result
             
         except Exception as e:
             elapsed = int((datetime.now() - start_time).total_seconds() * 1000)

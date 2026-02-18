@@ -50,11 +50,10 @@ const App = {
       loginForm.addEventListener('submit', App.handleLogin);
     }
 
-    // Password toggle
-    const pwdToggle = Utils.$('.input-password-toggle');
-    if (pwdToggle) {
-      pwdToggle.addEventListener('click', App.togglePasswordVisibility);
-    }
+    // Password toggle - attach to all password toggle buttons
+    Utils.$$('.input-password-toggle').forEach(btn => {
+      btn.addEventListener('click', App.togglePasswordVisibility);
+    });
 
     // Platform cards on landing
     Utils.$$('.platform-card').forEach(card => {
@@ -361,14 +360,28 @@ const App = {
    * Toggle password visibility
    */
   togglePasswordVisibility(e) {
-    const btn = e.currentTarget;
-    const input = btn.previousElementSibling;
+    const btn = e.currentTarget || e.target.closest('.input-password-toggle');
+    if (!btn) return;
+    
+    // Find the password input - it's the sibling input in the wrapper
+    const wrapper = btn.closest('.input-password-wrapper');
+    if (!wrapper) return;
+    
+    const input = wrapper.querySelector('input[type="password"], input[type="text"]');
+    if (!input) return;
+    
     const isPassword = input.type === 'password';
-
+    
+    // Toggle input type
     input.type = isPassword ? 'text' : 'password';
+    
+    // Update icon
     btn.innerHTML = isPassword
       ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`
       : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+    
+    // Update aria-label for accessibility
+    btn.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
   },
 
   /**
@@ -386,6 +399,9 @@ const App = {
     Utils.$('#connect-title').textContent = `Connect ${config.name}`;
     Utils.$('#connect-subtitle').textContent = config.description;
 
+    // Show quick connect buttons
+    App.showQuickConnectButtons(platform);
+
     // Show platform-specific instructions
     Utils.hide('#stripe-instructions');
     Utils.hide('#zoho-instructions');
@@ -402,6 +418,9 @@ const App = {
       Utils.$('#api-key-label').textContent = 'Stripe Secret Key (Authentication Token)';
       Utils.$('#api-key').placeholder = 'sk_test_... or sk_live_...';
       Utils.$('#api-key-help').textContent = 'Your Secret Key acts as your Access Token and is encrypted at rest.';
+      // Show test button
+      const testBtn = Utils.$('#test-connection-btn');
+      if (testBtn) testBtn.style.display = 'inline-flex';
     } else if (platform === 'zoho') {
       Utils.show('#zoho-instructions');
       // Default to "Code" mode
@@ -411,13 +430,17 @@ const App = {
       Utils.$('#api-key-label').textContent = 'GitHub Personal Access Token';
       Utils.$('#api-key').placeholder = 'ghp_xxxxxxxxxxxxxxxxxxxx';
       Utils.$('#api-key-help').textContent = 'Generate a token with "repo" scope at GitHub Settings.';
-      Utils.$('#api-key').placeholder = 'ghp_xxxxxxxxxxxxxxxxxxxx';
-      Utils.$('#api-key-help').textContent = 'Generate a token with "repo" scope at GitHub Settings.';
+      // Show test button
+      const testBtn = Utils.$('#test-connection-btn');
+      if (testBtn) testBtn.style.display = 'inline-flex';
     } else if (platform === 'trello') {
       Utils.show('#trello-instructions');
       Utils.$('#api-key-label').textContent = 'Trello Credentials';
       Utils.$('#api-key').placeholder = 'Your_API_Key:Your_Token';
       Utils.$('#api-key-help').textContent = 'Enter API Key and Token separated by a colon.';
+      // Show test button
+      const testBtn = Utils.$('#test-connection-btn');
+      if (testBtn) testBtn.style.display = 'inline-flex';
     } else if (platform === 'salesforce') {
       Utils.show('#salesforce-instructions');
       Utils.$('#api-key-label').textContent = 'Salesforce Credentials';
@@ -435,6 +458,16 @@ const App = {
     Utils.hide('#masked-key-display');
     Utils.$('#connect-submit').disabled = false;
     Utils.$('#connect-submit').classList.remove('btn--loading');
+    
+    // Reset wizard
+    App.resetWizard();
+    
+    // Check clipboard after a delay
+    setTimeout(() => {
+      if (platform !== 'salesforce') {
+        App.checkClipboard();
+      }
+    }, 500);
 
     // Check if user is logged in
     if (!State.isLoggedIn()) {
@@ -443,6 +476,338 @@ const App = {
     } else {
       App.navigate('connect');
     }
+  },
+
+  /**
+   * Show quick connect buttons for platform
+   */
+  showQuickConnectButtons(platform) {
+    const container = Utils.$('#quick-connect-buttons');
+    if (!container) return;
+
+    const quickLinks = {
+      stripe: {
+        url: 'https://dashboard.stripe.com/apikeys',
+        text: '🔗 Open Stripe API Keys',
+        color: 'btn--stripe',
+        icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-1.875 0-4.965-.921-6.99-2.109l-.9 5.555C5.175 22.99 8.385 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.591-7.305z"/></svg>'
+      },
+      github: {
+        url: 'https://github.com/settings/tokens/new',
+        text: '🔗 Create GitHub Token',
+        color: 'btn--github',
+        icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>'
+      },
+      trello: {
+        url: 'https://trello.com/power-ups/admin',
+        text: '🔗 Open Trello Power-Ups',
+        color: 'btn--trello',
+        icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M21 0H3C1.343 0 0 1.343 0 3v18c0 1.657 1.343 3 3 3h18c1.657 0 3-1.343 3-3V3c0-1.657-1.343-3-3-3zM10.44 18.18c0 .795-.645 1.44-1.44 1.44H4.56c-.795 0-1.44-.646-1.44-1.44V5.82c0-.795.645-1.44 1.44-1.44H9c.795 0 1.44.645 1.44 1.44v12.36zm10.44-6c0 .795-.645 1.44-1.44 1.44H15c-.795 0-1.44-.646-1.44-1.44V5.82c0-.795.645-1.44 1.44-1.44h4.44c.795 0 1.44.645 1.44 1.44v6.36z"/></svg>'
+      },
+      zoho: {
+        url: 'https://api-console.zoho.com/',
+        text: '🔗 Open Zoho API Console',
+        color: 'btn--zoho',
+        icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 22C6.486 22 2 17.514 2 12S6.486 2 12 2s10 4.486 10 10-4.486 10-10 10z"/></svg>'
+      },
+      salesforce: {
+        url: 'https://login.salesforce.com/',
+        text: '🔗 Open Salesforce Setup',
+        color: 'btn--salesforce',
+        icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M10.006 5a4.5 4.5 0 0 1 4.26 3.052A3.75 3.75 0 0 1 17.97 11.6a3.75 3.75 0 0 1-.469 7.4H5.25a4.35 4.35 0 0 1-.81-8.624A4.5 4.5 0 0 1 10.006 5z"/></svg>'
+      }
+    };
+
+    const link = quickLinks[platform];
+    if (link) {
+      container.innerHTML = `
+        <a href="${link.url}" target="_blank" class="btn ${link.color} btn--lg" style="display: inline-flex; align-items: center; gap: var(--space-2); width: 100%; justify-content: center;">
+          ${link.icon || ''}
+          ${link.text}
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <line x1="10" y1="14" x2="21" y2="3"></line>
+          </svg>
+        </a>
+      `;
+    } else {
+      container.innerHTML = '';
+    }
+    
+    // Reset wizard to step 1
+    App.resetWizard();
+  },
+
+  /**
+   * Reset wizard to step 1
+   */
+  resetWizard() {
+    // Hide all steps
+    document.querySelectorAll('.wizard-step-content').forEach(step => {
+      step.classList.add('hidden');
+      step.classList.remove('active');
+    });
+    
+    // Show step 1
+    const step1 = Utils.$('#wizard-step-1');
+    if (step1) {
+      step1.classList.remove('hidden');
+      step1.classList.add('active');
+    }
+    
+    // Reset step indicators
+    document.querySelectorAll('.wizard-step-indicator').forEach((indicator, index) => {
+      const circle = indicator.querySelector('.step-circle');
+      const label = indicator.querySelector('.step-label');
+      const stepNum = index + 1;
+      if (stepNum === 1) {
+        circle.style.background = 'var(--color-primary)';
+        circle.style.color = 'white';
+        circle.style.border = '3px solid var(--bg-primary)';
+        if (label) label.style.color = 'var(--text-primary)';
+        if (label) label.style.fontWeight = '500';
+      } else {
+        circle.style.background = 'var(--bg-card)';
+        circle.style.color = 'var(--text-secondary)';
+        circle.style.border = '3px solid var(--border-default)';
+        if (label) label.style.color = 'var(--text-secondary)';
+        if (label) label.style.fontWeight = 'normal';
+      }
+    });
+  },
+
+  /**
+   * Move to next wizard step
+   */
+  nextWizardStep() {
+    const currentStep = document.querySelector('.wizard-step-content.active');
+    if (!currentStep) return;
+    
+    const currentStepNum = parseInt(currentStep.dataset.step);
+    if (currentStepNum >= 3) return;
+    
+    // Hide current step
+    currentStep.classList.remove('active');
+    currentStep.classList.add('hidden');
+    
+    // Show next step
+    const nextStep = Utils.$(`#wizard-step-${currentStepNum + 1}`);
+    if (nextStep) {
+      nextStep.classList.remove('hidden');
+      nextStep.classList.add('active');
+    }
+    
+    // Update step indicators
+    document.querySelectorAll('.wizard-step-indicator').forEach((indicator, index) => {
+      const stepNum = index + 1;
+      const circle = indicator.querySelector('.step-circle');
+      const label = indicator.querySelector('.step-label');
+      if (stepNum <= currentStepNum + 1) {
+        circle.style.background = 'var(--color-primary)';
+        circle.style.color = 'white';
+        circle.style.border = '3px solid var(--bg-primary)';
+        if (label) label.style.color = 'var(--text-primary)';
+        if (label) label.style.fontWeight = '500';
+      } else {
+        circle.style.background = 'var(--bg-card)';
+        circle.style.color = 'var(--text-secondary)';
+        circle.style.border = '3px solid var(--border-default)';
+        if (label) label.style.color = 'var(--text-secondary)';
+        if (label) label.style.fontWeight = 'normal';
+      }
+    });
+    
+    // Focus on input if step 2
+    if (currentStepNum + 1 === 2) {
+      setTimeout(() => {
+        const input = Utils.$('#api-key');
+        if (input) {
+          input.focus();
+          App.checkClipboard();
+        }
+      }, 100);
+    }
+  },
+
+  /**
+   * Move to previous wizard step
+   */
+  previousWizardStep() {
+    const currentStep = document.querySelector('.wizard-step-content.active');
+    if (!currentStep) return;
+    
+    const currentStepNum = parseInt(currentStep.dataset.step);
+    if (currentStepNum <= 1) return;
+    
+    // Hide current step
+    currentStep.classList.remove('active');
+    currentStep.classList.add('hidden');
+    
+    // Show previous step
+    const prevStep = Utils.$(`#wizard-step-${currentStepNum - 1}`);
+    if (prevStep) {
+      prevStep.classList.remove('hidden');
+      prevStep.classList.add('active');
+    }
+    
+    // Update step indicators
+    document.querySelectorAll('.wizard-step-indicator').forEach((indicator, index) => {
+      const stepNum = index + 1;
+      const circle = indicator.querySelector('.step-circle');
+      const label = indicator.querySelector('.step-label');
+      if (stepNum < currentStepNum) {
+        circle.style.background = 'var(--color-primary)';
+        circle.style.color = 'white';
+        circle.style.border = '3px solid var(--bg-primary)';
+        if (label) label.style.color = 'var(--text-primary)';
+        if (label) label.style.fontWeight = '500';
+      } else {
+        circle.style.background = 'var(--bg-card)';
+        circle.style.color = 'var(--text-secondary)';
+        circle.style.border = '3px solid var(--border-default)';
+        if (label) label.style.color = 'var(--text-secondary)';
+        if (label) label.style.fontWeight = 'normal';
+      }
+    });
+  },
+
+  /**
+   * Check clipboard for token
+   */
+  async checkClipboard() {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text && text.length > 10) {
+        // Check if it looks like a token
+        const platform = State.connectingPlatform;
+        const validation = App.validateTokenFormat(platform, text);
+        if (validation.valid || platform === 'trello' || platform === 'zoho' || platform === 'salesforce') {
+          const detectionEl = Utils.$('#clipboard-detection');
+          if (detectionEl) {
+            detectionEl.classList.remove('hidden');
+            State.clipboardToken = text;
+          }
+        }
+      }
+    } catch (err) {
+      // Clipboard API not available or permission denied
+      console.log('Clipboard check failed:', err);
+    }
+  },
+
+  /**
+   * Paste from clipboard
+   */
+  async pasteFromClipboard() {
+    try {
+      let text = State.clipboardToken;
+      if (!text) {
+        text = await navigator.clipboard.readText();
+      }
+      
+      if (text) {
+        const input = Utils.$('#api-key');
+        if (input) {
+          input.value = text.trim();
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          
+          // Move to step 3
+          const currentStep = document.querySelector('.wizard-step-content.active');
+          if (currentStep && parseInt(currentStep.dataset.step) === 2) {
+            App.nextWizardStep();
+          }
+          
+          App.showToast('Token pasted!', 'success');
+        }
+      }
+    } catch (err) {
+      App.showToast('Could not access clipboard. Please paste manually.', 'warning');
+    }
+  },
+
+  /**
+   * Test connection before finalizing
+   */
+  async testConnection() {
+    const platform = State.connectingPlatform;
+    const apiKey = Utils.$('#api-key').value.trim();
+    const testBtn = Utils.$('#test-connection-btn');
+
+    if (!apiKey) {
+      App.showToast('Please enter your API key first', 'warning');
+      return;
+    }
+
+    // Validate token format first
+    const validation = App.validateTokenFormat(platform, apiKey);
+    if (!validation.valid) {
+      App.showToast(validation.error, 'error');
+      if (validation.hint) {
+        App.showToast(validation.hint, 'info');
+      }
+      return;
+    }
+
+    testBtn.disabled = true;
+    testBtn.textContent = 'Testing...';
+
+    try {
+      // For now, we'll just validate format
+      // In future, can add backend test endpoint
+      App.showToast('Token format looks good! You can connect now.', 'success');
+      Utils.$('#connect-submit').disabled = false;
+    } catch (error) {
+      App.showToast('Connection test failed: ' + error.message, 'error');
+    } finally {
+      testBtn.disabled = false;
+      testBtn.textContent = '🧪 Test Connection';
+    }
+  },
+
+  /**
+   * Validate token format
+   */
+  validateTokenFormat(platform, token) {
+    const patterns = {
+      stripe: {
+        regex: /^sk_(test|live)_[a-zA-Z0-9]{24,}$/,
+        error: 'Invalid Stripe key format',
+        hint: 'Should start with "sk_test_" or "sk_live_" followed by at least 24 characters'
+      },
+      github: {
+        regex: /^ghp_[a-zA-Z0-9]{36}$/,
+        error: 'Invalid GitHub token format',
+        hint: 'Should start with "ghp_" followed by 36 characters'
+      },
+      trello: {
+        // Trello API key is 32 chars, token can be longer (ATTA format is ~76 chars)
+        // More flexible regex to handle various token lengths
+        regex: /^[a-zA-Z0-9]{20,}:[a-zA-Z0-9_-]{40,}$/,
+        error: 'Invalid Trello credentials format',
+        hint: 'Format: API_KEY:TOKEN (separated by colon, no spaces). API Key should be ~32 chars, Token should start with ATTA'
+      },
+      zoho: {
+        regex: /^1000\.[a-zA-Z0-9._-]+$/,
+        error: 'Invalid Zoho token format',
+        hint: 'Should start with "1000." followed by alphanumeric characters'
+      }
+    };
+
+    const pattern = patterns[platform];
+    if (!pattern) {
+      return { valid: true }; // No validation for this platform
+    }
+
+    if (!pattern.regex.test(token)) {
+      return {
+        valid: false,
+        error: pattern.error,
+        hint: pattern.hint
+      };
+    }
+
+    return { valid: true };
   },
 
   /**
@@ -487,13 +852,27 @@ const App = {
   async handleConnect(e) {
     e.preventDefault();
 
-    const apiKey = Utils.$('#api-key').value;
+    const apiKey = Utils.$('#api-key').value.trim();
     const platform = State.connectingPlatform;
     const submitBtn = Utils.$('#connect-submit');
 
     // Reset status
     Utils.hide('#connect-success');
     Utils.hide('#connect-error');
+
+    // Validate token format first (but allow Trello to pass through for backend validation)
+    const validation = App.validateTokenFormat(platform, apiKey);
+    if (!validation.valid && platform !== 'zoho' && platform !== 'salesforce' && platform !== 'trello') {
+      Utils.show('#connect-error');
+      Utils.$('#connect-error-message').textContent = validation.error + (validation.hint ? '. ' + validation.hint : '');
+      return;
+    }
+    
+    // For Trello, show warning but allow backend to validate (more accurate)
+    if (platform === 'trello' && !validation.valid) {
+      console.warn('Trello format validation warning:', validation.error);
+      // Still allow submission - backend will do proper validation
+    }
 
     // Show loading
     submitBtn.classList.add('btn--loading');
@@ -586,7 +965,11 @@ const App = {
                   await State.fetchPlatforms();
                   Utils.show('#connect-success');
                   App.showToast('Salesforce connected successfully!', 'success');
-                  setTimeout(() => App.navigate('query'), 1500);
+                  
+                  // Update wizard to step 3 (success)
+                  App.nextWizardStep();
+                  
+                  setTimeout(() => App.navigate('query'), 2000);
                 } else {
                   Utils.show('#connect-error');
                   Utils.$('#connect-error-message').textContent = result.error || 'Connection failed';
@@ -609,7 +992,13 @@ const App = {
             // Event listeners (remove old ones first)
             submitBtn2.onclick = handleSubmit;
             cancelBtn.onclick = handleCancel;
-            Utils.$('#sf-code-modal .modal__backdrop').onclick = handleCancel;
+            // Close modal when clicking outside (on backdrop)
+            const modalElement = Utils.$('#sf-code-modal');
+            modalElement.onclick = (e) => {
+              if (e.target === modalElement) {
+                handleCancel();
+              }
+            };
 
             // Enter key to submit
             codeInput.onkeydown = (e) => {
@@ -635,6 +1024,29 @@ const App = {
         // Show success
         Utils.show('#connect-success');
 
+        // Update wizard to step 3 (success)
+        App.nextWizardStep();
+        
+        // Update step 3 content to show success
+        const step3 = Utils.$('#wizard-step-3');
+        if (step3) {
+          const step3Content = step3.querySelector('div');
+          if (step3Content) {
+            step3Content.innerHTML = `
+              <div style="text-align: center; padding: var(--space-4);">
+                <div style="width: 64px; height: 64px; background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(34, 197, 94, 0.1)); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto var(--space-4);">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" stroke-width="3">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                  </svg>
+                </div>
+                <h3 style="margin: 0 0 var(--space-2) 0; font-size: var(--font-size-xl); font-weight: 600; color: var(--color-success);">Connected Successfully!</h3>
+                <p style="margin: 0; color: var(--text-secondary); font-size: var(--font-size-sm);">${API.platformConfig[platform].name} is now connected and ready to use.</p>
+              </div>
+            `;
+          }
+        }
+
         // Show masked key
         const displayKey = result.refresh_token || apiKey;
         Utils.$('#masked-key-value').textContent = result.platform?.masked_key || Utils.maskApiKey(displayKey);
@@ -651,7 +1063,7 @@ const App = {
         // Navigate to query after delay
         setTimeout(() => {
           App.navigate('query');
-        }, 1500);
+        }, 2000);
       } else {
         Utils.show('#connect-error');
         Utils.$('#connect-error-message').textContent = result.error || 'Connection failed';
@@ -663,6 +1075,10 @@ const App = {
       submitBtn.disabled = false;
     } finally {
       submitBtn.classList.remove('btn--loading');
+      const submitText = Utils.$('#connect-submit-text');
+      if (submitText) {
+        submitText.textContent = 'Validate & Connect';
+      }
     }
   },
 
@@ -938,11 +1354,14 @@ const App = {
     container.appendChild(messageEl);
 
     // Render Chart if available
+    console.log('[DEBUG appendMessageToUI] Checking for chart. msg.rawData:', msg.rawData);
+    console.log('[DEBUG appendMessageToUI] msg.rawData.chart:', msg.rawData?.chart);
     if (msg.rawData && msg.rawData.chart) {
       console.log('[DEBUG] Rendering chart:', msg.rawData.chart);
       const chartId = `chart-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
       const chartContainer = document.createElement('div');
       chartContainer.className = 'chat-chart-container';
+      chartContainer.setAttribute('data-chart-type', msg.rawData.chart.type || 'bar');
       
       // Add chart controls wrapper
       const controlsId = `chart-controls-${chartId}`;
@@ -1044,6 +1463,12 @@ const App = {
       }
     } else {
       console.log('[DEBUG] No chart data found. rawData:', msg.rawData);
+      console.log('[DEBUG] rawData exists?', !!msg.rawData);
+      console.log('[DEBUG] rawData.chart exists?', !!(msg.rawData && msg.rawData.chart));
+      if (msg.rawData) {
+        console.log('[DEBUG] rawData keys:', Object.keys(msg.rawData));
+        console.log('[DEBUG] rawData full object:', JSON.stringify(msg.rawData, null, 2));
+      }
     }
   },
 
@@ -2247,71 +2672,85 @@ const App = {
     // Enhance Datasets with Gradients and Styling
     if (config.data && config.data.datasets) {
       config.data.datasets.forEach((ds, i) => {
-        // Attractive vibrant color palette
+        // Dark theme color palette - deep, rich, and shiny
         const colors = [
-          ['#6366f1', '#8b5cf6'], // Indigo -> Purple
-          ['#10b981', '#3b82f6'], // Emerald -> Blue
-          ['#f59e0b', '#ef4444'], // Amber -> Red
-          ['#ec4899', '#f43f5e'], // Pink -> Rose
-          ['#06b6d4', '#14b8a6'], // Cyan -> Teal
-          ['#a855f7', '#d946ef'], // Purple -> Fuchsia
-          ['#f97316', '#eab308'], // Orange -> Yellow
-          ['#22c55e', '#84cc16'], // Green -> Lime
+          ['#1e1b4b', '#312e81'], // Deep Indigo -> Rich Indigo (shiny)
+          ['#064e3b', '#065f46'], // Deep Emerald -> Dark Emerald (glossy)
+          ['#78350f', '#92400e'], // Deep Amber -> Dark Amber (metallic)
+          ['#831843', '#9f1239'], // Deep Rose -> Dark Rose (jewel tone)
+          ['#083344', '#0e7490'], // Deep Cyan -> Dark Cyan (shiny)
+          ['#4c1d95', '#5b21b6'], // Deep Purple -> Rich Purple (glossy)
+          ['#7c2d12', '#991b1b'], // Deep Red -> Dark Red (metallic)
+          ['#14532d', '#166534'], // Deep Green -> Dark Green (jewel tone)
         ];
         const colorPair = colors[i % colors.length];
 
         if (config.type === 'bar') {
-          // Use different colors for each bar
+          // Dark shiny colors for bars - deep jewel tones with shine
           const vibrantColors = [
-            '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316',
-            '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#a855f7',
-            '#14b8a6', '#f59e0b', '#ef4444', '#d946ef', '#84cc16'
+            '#1e1b4b', '#312e81', '#4c1d95', '#5b21b6', '#831843',
+            '#9f1239', '#7c2d12', '#991b1b', '#064e3b', '#065f46',
+            '#083344', '#0e7490', '#14532d', '#166534', '#78350f',
+            '#92400e', '#581c87', '#6b21a8', '#7e22ce'
           ];
           
-          // Assign different color to each data point
+          // Assign different color to each data point with shiny borders
           if (ds.data && Array.isArray(ds.data)) {
             ds.backgroundColor = ds.data.map((_, index) => vibrantColors[index % vibrantColors.length]);
-            ds.borderColor = ds.data.map((_, index) => vibrantColors[index % vibrantColors.length]);
+            // Add shine effect with slightly lighter borders
+            ds.borderColor = ds.data.map((_, index) => {
+              const baseColor = vibrantColors[index % vibrantColors.length];
+              // Lighten border for shine effect (convert hex to RGB, lighten, convert back)
+              return baseColor; // Keep same for now, Chart.js will handle the shine
+            });
           } else {
             ds.backgroundColor = vibrantColors[i % vibrantColors.length];
             ds.borderColor = vibrantColors[i % vibrantColors.length];
           }
           
-          ds.borderWidth = 2;
+          ds.borderWidth = 2.5; // Slightly thicker for more shine visibility
           ds.borderRadius = 8; // Rounded top corners
           ds.barPercentage = 0.7;
         } else if (config.type === 'line') {
-          // Create Gradient for line charts
+          // Create Gradient for line charts with dark shiny theme
           const gradient = ctx.createLinearGradient(0, 0, 0, 400);
           gradient.addColorStop(0, colorPair[0]);
-          gradient.addColorStop(1, 'rgba(99, 102, 241, 0.05)'); // Fade to transparent
+          gradient.addColorStop(0.5, colorPair[1]); // Mid-tone for shine effect
+          gradient.addColorStop(1, 'rgba(30, 27, 75, 0.05)'); // Deep indigo fade to transparent
 
           ds.backgroundColor = gradient;
-          ds.borderColor = colorPair[0];
-          ds.borderWidth = 3;
+          ds.borderColor = colorPair[1]; // Use brighter shade for shiny border
+          ds.borderWidth = 3.5; // Thicker for more shine
           ds.tension = 0.4; // Smooth curve
           ds.fill = true;
-          ds.pointBackgroundColor = colorPair[0];
-          ds.pointBorderColor = '#ffffff';
+          ds.pointBackgroundColor = colorPair[1]; // Use brighter shade for shine
+          ds.pointBorderColor = 'rgba(255, 255, 255, 0.6)'; // Shiny white border
           ds.pointBorderWidth = 3; // Thicker border for visibility
           ds.pointRadius = 5; // Larger points
           ds.pointHoverRadius = 7;
         } else if (config.type === 'doughnut' || config.type === 'pie') {
-          ds.borderWidth = 2;
-          ds.borderColor = '#1f2937'; // Dark border for contrast
-          ds.hoverOffset = 20;
-          ds.borderRadius = 5;
-          // Vibrant attractive palette for pie/doughnut
+          ds.borderWidth = 3;
+          ds.borderColor = 'rgba(255, 255, 255, 0.4)'; // Slightly brighter border for shine effect
+          ds.hoverOffset = 25; // More pronounced hover effect
+          ds.borderRadius = 8;
+          // Dark shiny palette for pie/doughnut - deep jewel tones with metallic shine
           ds.backgroundColor = [
-            '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316', 
-            '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#a855f7',
-            '#14b8a6', '#f59e0b', '#ef4444', '#d946ef'
+            '#1e1b4b', '#312e81', '#4c1d95', '#5b21b6', '#6b21a8',
+            '#831843', '#9f1239', '#7c2d12', '#991b1b', '#064e3b',
+            '#065f46', '#083344', '#0e7490', '#14532d', '#166534',
+            '#78350f', '#92400e', '#581c87', '#7e22ce', '#6d1b69'
           ];
+          // Ensure colors are applied per data point
+          if (ds.data && Array.isArray(ds.data)) {
+            ds.backgroundColor = ds.data.map((_, idx) => 
+              ds.backgroundColor[idx % ds.backgroundColor.length]
+            );
+          }
         } else if (config.type === 'scatter') {
           ds.backgroundColor = colorPair[0];
-          ds.borderColor = colorPair[0];
+          ds.borderColor = colorPair[1]; // Use brighter shade for border shine
           ds.pointBackgroundColor = colorPair[0];
-          ds.pointBorderColor = '#ffffff';
+          ds.pointBorderColor = colorPair[1]; // Shiny border
           ds.pointBorderWidth = 3;
           ds.pointRadius = 6;
           ds.pointHoverRadius = 8;
@@ -2400,22 +2839,43 @@ const App = {
     const chartOptions = {
       ...config.options,
       responsive: true,
-      maintainAspectRatio: false,
+      maintainAspectRatio: false, // Keep false to fit container properly
       plugins: {
           legend: {
             display: config.type === 'doughnut' || config.type === 'pie',
             position: 'bottom',
+            align: 'center',
             labels: {
               usePointStyle: true,
-              padding: 20,
-              boxWidth: 10,
-              color: '#e5e7eb', // Much brighter for visibility
+              padding: 15,
+              boxWidth: 14,
+              boxHeight: 14,
+              color: '#ffffff', // Bright white for maximum visibility
               font: { 
-                size: 13,
-                weight: '500',
+                size: 14,
+                weight: '600',
                 family: "'Inter', sans-serif"
+              },
+              generateLabels: function(chart) {
+                try {
+                  const original = Chart.defaults.plugins.legend.labels.generateLabels;
+                  const labels = original(chart);
+                  // Make labels more visible
+                  labels.forEach(label => {
+                    label.fontColor = '#ffffff';
+                    label.fillStyle = label.strokeStyle;
+                  });
+                  return labels;
+                } catch (e) {
+                  // Fallback to default labels
+                  return Chart.defaults.plugins.legend.labels.generateLabels(chart);
+                }
               }
-            }
+            },
+            // Better spacing for legend
+            fullSize: false,
+            maxWidth: 600,
+            maxHeight: 100
           },
         tooltip: {
           enabled: false, // Disable default
@@ -2474,10 +2934,11 @@ const App = {
                 lineWidth: 1
               },
               ticks: {
-                padding: 12,
+                padding: 8,
+                maxTicksLimit: 8,
                 color: '#e5e7eb', // Much brighter
                 font: { 
-                  size: 13,
+                  size: 12,
                   weight: '500',
                   family: "'Inter', sans-serif"
                 },
@@ -2491,20 +2952,23 @@ const App = {
             },
             x: {
               grid: { 
-                display: true,
+                display: false, // Remove x-axis grid for cleaner look
                 color: 'rgba(255, 255, 255, 0.05)',
                 lineWidth: 1
               },
               ticks: {
-                padding: 12,
+                padding: 8,
+                maxRotation: 45,
+                minRotation: 0,
                 color: '#e5e7eb', // Much brighter
                 font: { 
-                  size: 13,
+                  size: 11,
                   weight: '500',
                   family: "'Inter', sans-serif"
                 },
                 backdropColor: 'rgba(17, 24, 39, 0.7)',
-                backdropPadding: 4
+                backdropPadding: 4,
+                maxTicksLimit: 10 // Limit number of x-axis labels
               },
               border: { 
                 display: true,
@@ -2513,7 +2977,12 @@ const App = {
             }
           },
       layout: {
-        padding: 20
+        padding: {
+          top: config.type === 'doughnut' || config.type === 'pie' ? 10 : 15,
+          bottom: config.type === 'doughnut' || config.type === 'pie' ? 50 : 15,
+          left: config.type === 'bar' || config.type === 'line' ? 5 : 10,
+          right: config.type === 'bar' || config.type === 'line' ? 5 : 10
+        }
       },
       interaction: {
         mode: 'index',
@@ -2537,8 +3006,18 @@ const App = {
     };
 
     // Set canvas background for better export and display
-    canvas.style.backgroundColor = '#111827'; // Dark background matching UI
-    canvas.style.borderRadius = '0 0 var(--radius-lg) var(--radius-lg)';
+    canvas.style.backgroundColor = 'transparent'; // Transparent for better integration
+    canvas.style.borderRadius = 'var(--radius-md)';
+    canvas.style.width = '100%';
+    canvas.style.maxWidth = '100%';
+    canvas.style.height = 'auto';
+    canvas.style.boxSizing = 'border-box';
+    
+    // Ensure canvas fits container properly
+    const chartContainer = container || canvas.closest('.chat-chart-container');
+    if (chartContainer) {
+      chartContainer.style.overflow = 'hidden';
+    }
     
     try {
       const chartInstance = new Chart(ctx, {
@@ -2547,7 +3026,7 @@ const App = {
         options: {
           ...chartOptions,
           // Ensure proper background for export
-          backgroundColor: '#111827',
+          backgroundColor: 'transparent',
           onResize: (chart, size) => {
             // Maintain quality on resize
             chart.canvas.style.imageRendering = 'crisp-edges';

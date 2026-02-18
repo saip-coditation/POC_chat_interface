@@ -513,23 +513,22 @@
 /* Standalone Modal (with .modal.hidden pattern) */
 .modal {
     position: fixed;
-    top: 50%;
-    left: 2rem;
-    transform: translateY(-50%);
-    /* Reset other positions */
-    bottom: auto;
-    right: auto;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    transform: none;
     z-index: 9999;
-    background: transparent;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
     padding: 0;
     margin: 0;
-    pointer-events: none;
-    /* Container is invisible to clicks */
+    pointer-events: auto;
     display: flex;
-    justify-content: flex-start;
+    justify-content: center;
     align-items: center;
-    width: auto;
-    height: auto;
+    width: 100%;
+    height: 100%;
 }
 
 .modal.hidden {
@@ -555,17 +554,79 @@
     position: relative;
     background: var(--bg-card);
     border-radius: var(--radius-xl);
-    box-shadow: none;
-    /* Removed shadow/glow effect */
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
     border: 1px solid var(--border-light);
-    /* Ensure border is visible */
     max-width: 480px;
-    width: 100%;
-    max-height: calc(100vh - 40px);
+    width: 90%;
+    max-height: calc(100vh - 80px);
     overflow: auto;
     animation: modalSlideIn 0.25s ease-out;
     pointer-events: auto;
-    /* Re-enable clicks on the card itself */
+    margin: var(--space-4);
+}
+
+/* Connection Wizard Styles */
+.connection-wizard {
+    margin-bottom: var(--space-6);
+}
+
+.wizard-step-content {
+    display: none;
+}
+
+.wizard-step-content.active {
+    display: block;
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.wizard-step-indicator:first-child .step-line {
+    display: none;
+}
+
+.wizard-step-indicator:last-child .step-line {
+    display: none;
+}
+
+/* Wizard step circles */
+.wizard-step-indicator .step-circle {
+    transition: all 0.3s ease;
+}
+
+.wizard-step-indicator.active .step-circle {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+/* Wizard content transitions */
+.wizard-step-content {
+    animation: fadeIn 0.3s ease-in;
+}
+
+/* Clipboard detection banner */
+#clipboard-detection {
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 @keyframes modalSlideIn {
@@ -1407,32 +1468,50 @@
    Chart Container
    -------------------------------------------------------------------------- */
 
-.chat-chart-container {
-    position: relative;
-    height: 300px;
-    width: 100%;
-    margin-top: var(--space-4);
-    background: rgba(255, 255, 255, 0.5);
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-lg);
-    padding: var(--space-4);
-    transition: all var(--transition-base);
-}
-
-
-
 /* Glassmorphism for chart container */
 .chat-chart-container {
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+    margin-top: var(--space-4);
     background: rgba(255, 255, 255, 0.03);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    transition: all var(--transition-base);
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+/* Responsive height based on chart type - ensure proper fit */
+.chat-chart-container[data-chart-type="bar"],
+.chat-chart-container[data-chart-type="line"] {
+    height: 400px;
+    min-height: 400px;
+    max-height: 400px;
+}
+
+.chat-chart-container[data-chart-type="doughnut"],
+.chat-chart-container[data-chart-type="pie"] {
+    height: 450px;
+    min-height: 450px;
+    max-height: 450px;
+    padding-bottom: var(--space-6);
+}
+
+.chat-chart-container[data-chart-type="scatter"] {
+    height: 400px;
+    min-height: 400px;
+    max-height: 400px;
 }
 
 .chat-chart-container:hover {
     box-shadow: var(--shadow-md);
     transform: translateY(-1px);
+    border-color: rgba(255, 255, 255, 0.12);
 }
 
 /* --------------------------------------------------------------------------
@@ -1537,7 +1616,43 @@
 }
 
 .chat-chart-container canvas {
-    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    border-radius: var(--radius-md);
+    max-width: 100% !important;
+    width: 100% !important;
+    height: auto !important;
+    display: block;
+    background: transparent;
+    box-sizing: border-box;
+}
+
+/* Better spacing and visibility for doughnut/pie charts */
+.chat-chart-container[data-chart-type="doughnut"] canvas,
+.chat-chart-container[data-chart-type="pie"] canvas {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: var(--space-3) auto;
+}
+
+/* Ensure bar/line charts fit properly */
+.chat-chart-container[data-chart-type="bar"] canvas,
+.chat-chart-container[data-chart-type="line"] canvas {
+    max-width: 100% !important;
+    width: 100% !important;
+}
+
+/* Ensure legend is visible for doughnut charts */
+.chat-chart-container[data-chart-type="doughnut"] .chartjs-legend,
+.chat-chart-container[data-chart-type="pie"] .chartjs-legend {
+    margin-top: var(--space-4);
+    padding: var(--space-3);
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-md);
+}
+
+.chat-chart-container[data-chart-type="doughnut"] .chartjs-legend li,
+.chat-chart-container[data-chart-type="pie"] .chartjs-legend li {
+    color: #ffffff !important;
+    font-weight: 600;
 }
 
 /* --------------------------------------------------------------------------

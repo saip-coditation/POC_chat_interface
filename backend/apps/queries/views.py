@@ -589,6 +589,15 @@ class ProcessQueryView(APIView):
             'chart': result.chart
         }
         
+        # Debug logging for chart
+        logger.info(f"[CHART RESPONSE] Checking chart in result - result.chart type: {type(result.chart)}, is None: {result.chart is None}")
+        if result.chart:
+            logger.info(f"[CHART RESPONSE] Chart included in response: type={result.chart.get('type') if isinstance(result.chart, dict) else 'unknown'}")
+            logger.info(f"[CHART RESPONSE] Chart keys: {list(result.chart.keys()) if isinstance(result.chart, dict) else 'N/A'}")
+        else:
+            logger.warning(f"[CHART RESPONSE] No chart in result! result.chart = {result.chart}")
+            logger.warning(f"[CHART RESPONSE] Result object type: {type(result)}, has chart attr: {hasattr(result, 'chart')}")
+        
         if result.error:
             payload['error'] = result.error
         
