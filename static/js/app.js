@@ -2249,7 +2249,7 @@ const App = {
             <td>${Utils.escapeHtml(item.name || '-')}</td>
             <td>${Utils.escapeHtml(item.list_name || '-')}</td>
             <td>${item.due ? Utils.formatDate(item.due) : '-'}</td>
-            <td><a href="${url}" target="_blank" rel="noopener noreferrer" class="link-external">View Card↗</a></td>
+            <td style="width: 1%; white-space: nowrap;"><a href="${url}" target="_blank" rel="noopener noreferrer" class="link-external">View Card</a></td>
         `;
     }
 
@@ -2257,7 +2257,7 @@ const App = {
       return `
             <td><strong>${Utils.escapeHtml(item.name || '-')}</strong></td>
             <td>${Utils.escapeHtml((item.desc || '-').substring(0, 50))}</td>
-            <td><a href="${item.url}" target="_blank" rel="noopener noreferrer" style="color: var(--color-primary); text-decoration: none;">View Board↗</a></td>
+            <td style="width: 1%; white-space: nowrap;"><a href="${item.url}" target="_blank" rel="noopener noreferrer" style="color: var(--color-primary); text-decoration: none;">View Board</a></td>
         `;
     }
 
