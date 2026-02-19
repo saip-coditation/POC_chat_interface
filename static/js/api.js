@@ -607,6 +607,72 @@ const API = {
     },
 
     /**
+     * ========== DASHBOARD API ==========
+     */
+
+    /**
+     * Get all dashboards
+     */
+    async getDashboards() {
+        return await API.request('/dashboards/');
+    },
+
+    /**
+     * Create a new dashboard
+     */
+    async createDashboard(title) {
+        return await API.request('/dashboards/', {
+            method: 'POST',
+            body: JSON.stringify({ title })
+        });
+    },
+
+    /**
+     * Delete a dashboard
+     */
+    async deleteDashboard(id) {
+        return await API.request(`/dashboards/${id}/`, {
+            method: 'DELETE'
+        });
+    },
+
+    /**
+     * Get widgets for a dashboard (filtered by dashboard in backend or here)
+     * Backend ViewSet likely handles filtering by user, but we might need to filter by dashboard if not nested.
+     * Our backend WidgetViewSet filters by user. We can filter by dashboard=id param if we supported it, 
+     * OR we can just use the nested structure from DashboardSerializer which includes 'widgets'.
+     * Let's check DashboardSerializer: it includes 'widgets'. So getDashboards() might return them?
+     * Yes, DashboardSerializer has `widgets = WidgetSerializer(many=True, read_only=True)`.
+     * So getDashboards() returns full structure.
+     * But we might also want to create widgets.
+     */
+
+    /**
+     * Create a widget
+     */
+    async createWidget(dashboardId, title, type, data, position = {}) {
+        return await API.request('/widgets/', {
+            method: 'POST',
+            body: JSON.stringify({
+                dashboard: dashboardId,
+                title,
+                widget_type: type,
+                data,
+                position
+            })
+        });
+    },
+
+    /**
+     * Delete a widget
+     */
+    async deleteWidget(id) {
+        return await API.request(`/widgets/${id}/`, {
+            method: 'DELETE'
+        });
+    },
+
+    /**
      * ========== QUERY SUGGESTIONS API ==========
      */
 

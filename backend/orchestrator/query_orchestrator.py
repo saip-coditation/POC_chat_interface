@@ -1226,7 +1226,8 @@ class QueryOrchestrator:
             all_matches = []
             # Pattern for "inside X board" or "in X board" - but stop before "in trello"
             # Improved pattern that explicitly excludes "in trello" from capture
-            for match in re.finditer(r'\b(?:inside|in|on|for)\s+([a-zA-Z0-9_\-\s]+?)\s+board(?:\s+in\s+trello)?\b', query, re.IGNORECASE):
+            # Also excludes "list" or "card" from the board name to avoid capturing "in To Do list in testing board" as one match
+            for match in re.finditer(r'\b(?:inside|in|on|for)\s+((?:(?!\b(?:list|card)\b)[a-zA-Z0-9_\-\s])+?)\s+board(?:\s+in\s+trello)?\b', query, re.IGNORECASE):
                 board_candidate = match.group(1).strip()
                 # Filter out "in trello" if it got captured
                 if board_candidate.lower().endswith(' in trello'):
@@ -1324,6 +1325,10 @@ class QueryOrchestrator:
                     r'(?:create|delete|remove|add|new)\s+(?:a\s+)?card\s+called\s+[\'"]([^\'"]+)[\'"]',  # "create a card called 'My Task'" - captures quoted name
                     r'card\s+[\'"]([^\'"]+)[\'"]\s+(?:in|inside|on)',  # "card 'My Task' in" - captures quoted name
                     r'(?:create|delete|remove|add|new)\s+(?:a\s+)?card\s+([^\s]+(?:\s+[^\s]+)*?)(?:\s+in|\s+inside|\s+on|$)',  # "create card My Task in" - captures unquoted name
+                    r'(?:create|add|new|make)\s+[\'"]([^\'"]+)[\'"]\s+(?:in|inside|on|to)',  # "Add 'Review PR' in"
+                    r'(?:create|add|new|make)\s+[\'"]([^\'"]+)[\'"]',  # "Add 'Review PR'" (generic)
+                    r'(?:delete|remove)\s+[\'"]([^\'"]+)[\'"]\s+(?:in|inside|on|from)',  # "Remove 'Review PR' in"
+                    r'(?:delete|remove)\s+[\'"]([^\'"]+)[\'"]',  # "Remove 'Review PR'" (generic)
                 ]
                 for pattern in card_name_patterns:
                     match = re.search(pattern, query, re.IGNORECASE)

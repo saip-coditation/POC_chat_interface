@@ -100,17 +100,17 @@ const App = {
           }, 100);
         }
       });
-      
+
       // Handle keyboard navigation (autocomplete + query history Up/Down)
       queryInput.addEventListener('keydown', (e) => {
         App.handleQueryInputKeydown(e);
       });
-      
+
       // Show suggestions on focus (always show default patterns)
       queryInput.addEventListener('focus', () => {
         App.handleAutocomplete(queryInput.value || '');
       });
-      
+
       // Hide autocomplete on blur (with delay to allow clicks)
       queryInput.addEventListener('blur', () => {
         setTimeout(() => {
@@ -362,24 +362,24 @@ const App = {
   togglePasswordVisibility(e) {
     const btn = e.currentTarget || e.target.closest('.input-password-toggle');
     if (!btn) return;
-    
+
     // Find the password input - it's the sibling input in the wrapper
     const wrapper = btn.closest('.input-password-wrapper');
     if (!wrapper) return;
-    
+
     const input = wrapper.querySelector('input[type="password"], input[type="text"]');
     if (!input) return;
-    
+
     const isPassword = input.type === 'password';
-    
+
     // Toggle input type
     input.type = isPassword ? 'text' : 'password';
-    
+
     // Update icon
     btn.innerHTML = isPassword
       ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`
       : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
-    
+
     // Update aria-label for accessibility
     btn.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
   },
@@ -458,10 +458,10 @@ const App = {
     Utils.hide('#masked-key-display');
     Utils.$('#connect-submit').disabled = false;
     Utils.$('#connect-submit').classList.remove('btn--loading');
-    
+
     // Reset wizard
     App.resetWizard();
-    
+
     // Check clipboard after a delay
     setTimeout(() => {
       if (platform !== 'salesforce') {
@@ -534,7 +534,7 @@ const App = {
     } else {
       container.innerHTML = '';
     }
-    
+
     // Reset wizard to step 1
     App.resetWizard();
   },
@@ -548,14 +548,14 @@ const App = {
       step.classList.add('hidden');
       step.classList.remove('active');
     });
-    
+
     // Show step 1
     const step1 = Utils.$('#wizard-step-1');
     if (step1) {
       step1.classList.remove('hidden');
       step1.classList.add('active');
     }
-    
+
     // Reset step indicators
     document.querySelectorAll('.wizard-step-indicator').forEach((indicator, index) => {
       const circle = indicator.querySelector('.step-circle');
@@ -583,21 +583,21 @@ const App = {
   nextWizardStep() {
     const currentStep = document.querySelector('.wizard-step-content.active');
     if (!currentStep) return;
-    
+
     const currentStepNum = parseInt(currentStep.dataset.step);
     if (currentStepNum >= 3) return;
-    
+
     // Hide current step
     currentStep.classList.remove('active');
     currentStep.classList.add('hidden');
-    
+
     // Show next step
     const nextStep = Utils.$(`#wizard-step-${currentStepNum + 1}`);
     if (nextStep) {
       nextStep.classList.remove('hidden');
       nextStep.classList.add('active');
     }
-    
+
     // Update step indicators
     document.querySelectorAll('.wizard-step-indicator').forEach((indicator, index) => {
       const stepNum = index + 1;
@@ -617,7 +617,7 @@ const App = {
         if (label) label.style.fontWeight = 'normal';
       }
     });
-    
+
     // Focus on input if step 2
     if (currentStepNum + 1 === 2) {
       setTimeout(() => {
@@ -636,21 +636,21 @@ const App = {
   previousWizardStep() {
     const currentStep = document.querySelector('.wizard-step-content.active');
     if (!currentStep) return;
-    
+
     const currentStepNum = parseInt(currentStep.dataset.step);
     if (currentStepNum <= 1) return;
-    
+
     // Hide current step
     currentStep.classList.remove('active');
     currentStep.classList.add('hidden');
-    
+
     // Show previous step
     const prevStep = Utils.$(`#wizard-step-${currentStepNum - 1}`);
     if (prevStep) {
       prevStep.classList.remove('hidden');
       prevStep.classList.add('active');
     }
-    
+
     // Update step indicators
     document.querySelectorAll('.wizard-step-indicator').forEach((indicator, index) => {
       const stepNum = index + 1;
@@ -705,19 +705,19 @@ const App = {
       if (!text) {
         text = await navigator.clipboard.readText();
       }
-      
+
       if (text) {
         const input = Utils.$('#api-key');
         if (input) {
           input.value = text.trim();
           input.dispatchEvent(new Event('input', { bubbles: true }));
-          
+
           // Move to step 3
           const currentStep = document.querySelector('.wizard-step-content.active');
           if (currentStep && parseInt(currentStep.dataset.step) === 2) {
             App.nextWizardStep();
           }
-          
+
           App.showToast('Token pasted!', 'success');
         }
       }
@@ -867,7 +867,7 @@ const App = {
       Utils.$('#connect-error-message').textContent = validation.error + (validation.hint ? '. ' + validation.hint : '');
       return;
     }
-    
+
     // For Trello, show warning but allow backend to validate (more accurate)
     if (platform === 'trello' && !validation.valid) {
       console.warn('Trello format validation warning:', validation.error);
@@ -965,10 +965,10 @@ const App = {
                   await State.fetchPlatforms();
                   Utils.show('#connect-success');
                   App.showToast('Salesforce connected successfully!', 'success');
-                  
+
                   // Update wizard to step 3 (success)
                   App.nextWizardStep();
-                  
+
                   setTimeout(() => App.navigate('query'), 2000);
                 } else {
                   Utils.show('#connect-error');
@@ -1026,7 +1026,7 @@ const App = {
 
         // Update wizard to step 3 (success)
         App.nextWizardStep();
-        
+
         // Update step 3 content to show success
         const step3 = Utils.$('#wizard-step-3');
         if (step3) {
@@ -1083,24 +1083,24 @@ const App = {
   },
 
   /**
-   * Render dashboard page
+   * Render connected platforms
    */
-  async renderDashboard() {
+  async renderConnectedPlatforms() {
     // Refresh platforms from backend
     await State.fetchPlatforms();
 
-    const grid = Utils.$('#dashboard-grid');
-    const emptyState = Utils.$('#dashboard-empty');
+    const grid = Utils.$('#platforms-grid');
+    const emptyState = Utils.$('#platforms-empty');
     const connected = State.getConnectedPlatforms();
 
     if (connected.length === 0) {
-      Utils.hide(grid);
-      Utils.show(emptyState);
+      if (grid) Utils.hide(grid);
+      if (emptyState) Utils.show(emptyState);
       return;
     }
 
-    Utils.show(grid);
-    Utils.hide(emptyState);
+    if (grid) Utils.show(grid);
+    if (emptyState) Utils.hide(emptyState);
 
     grid.innerHTML = connected.map(platform => {
       const config = API.platformConfig[platform.platform];
@@ -1147,7 +1147,7 @@ const App = {
       const result = await API.disconnectPlatform(platformId);
       if (result.success) {
         await State.fetchPlatforms();
-        App.renderDashboard();
+        App.renderConnectedPlatforms();
         App.showToast(`${config.name} disconnected`, 'info');
       } else {
         App.showToast(result.error || 'Failed to disconnect', 'error');
@@ -1362,7 +1362,7 @@ const App = {
       const chartContainer = document.createElement('div');
       chartContainer.className = 'chat-chart-container';
       chartContainer.setAttribute('data-chart-type', msg.rawData.chart.type || 'bar');
-      
+
       // Add chart controls wrapper
       const controlsId = `chart-controls-${chartId}`;
       chartContainer.innerHTML = `
@@ -1377,6 +1377,11 @@ const App = {
             </select>
           </div>
           <div class="chart-controls__right">
+            <button class="chart-btn" data-action="pin" data-chart-id="${chartId}" title="Pin to Dashboard">
+               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"></path>
+              </svg>
+            </button>
             <button class="chart-btn" data-action="export" data-chart-id="${chartId}" title="Export chart">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -1449,10 +1454,10 @@ const App = {
             if (selector && msg.rawData.chart.type) {
               selector.value = msg.rawData.chart.type;
             }
-            
+
             // Store chart config for type switching
             chartContainer.dataset.chartConfig = JSON.stringify(msg.rawData.chart);
-            
+
             App.renderChart(chartId, msg.rawData.chart, chartContainer);
           } else {
             console.error('[DEBUG] Canvas element not found for chart:', chartId);
@@ -1555,11 +1560,11 @@ const App = {
     } catch (err) {
       const msg = err.message || '';
       // Check for duplicate query error messages
-      if (msg.toLowerCase().includes('already have') || 
-          msg.toLowerCase().includes('already exists') ||
-          msg.toLowerCase().includes('unique') || 
-          msg.includes('already') || 
-          msg.includes('400')) {
+      if (msg.toLowerCase().includes('already have') ||
+        msg.toLowerCase().includes('already exists') ||
+        msg.toLowerCase().includes('unique') ||
+        msg.includes('already') ||
+        msg.includes('400')) {
         App.showToast('You already have a saved query with this name.', 'info');
       } else {
         App.showToast(msg || 'Failed to save query', 'error');
@@ -1682,7 +1687,7 @@ const App = {
     } catch (error) {
       console.error('Query error:', error);
       App.removeTypingIndicator();
-      
+
       // Handle authentication errors
       if (error.message && (error.message.includes('session has expired') || error.message.includes('token'))) {
         // Don't show error message in chat, user will be redirected to login
@@ -1691,7 +1696,7 @@ const App = {
         }
         return;
       }
-      
+
       App.addChatMessage({
         summary: error.message || 'An error occurred while processing your request.',
         data: null
@@ -1866,7 +1871,7 @@ const App = {
           const knowledgeData = response.data[0];
           const answer = knowledgeData.answer || parsedSummary;
           const topic = knowledgeData.topic || 'Information';
-          
+
           // Format knowledge answer with markdown support
           let formattedAnswer = answer;
           if (typeof marked !== 'undefined') {
@@ -1876,7 +1881,7 @@ const App = {
               console.error('Markdown parse error for knowledge answer:', e);
             }
           }
-          
+
           messageContent = `
              <div class="result-card">
              <div class="result-card__header">
@@ -2244,7 +2249,7 @@ const App = {
             <td>${Utils.escapeHtml(item.name || '-')}</td>
             <td>${Utils.escapeHtml(item.list_name || '-')}</td>
             <td>${item.due ? Utils.formatDate(item.due) : '-'}</td>
-            <td><a href="${url}" target="_blank" rel="noopener noreferrer" class="link-external">View Card ↗</a></td>
+            <td><a href="${url}" target="_blank" rel="noopener noreferrer" class="link-external">View Card↗</a></td>
         `;
     }
 
@@ -2252,7 +2257,7 @@ const App = {
       return `
             <td><strong>${Utils.escapeHtml(item.name || '-')}</strong></td>
             <td>${Utils.escapeHtml((item.desc || '-').substring(0, 50))}</td>
-            <td><a href="${item.url}" target="_blank" rel="noopener noreferrer" style="color: var(--color-primary); text-decoration: none;">View Board ↗</a></td>
+            <td><a href="${item.url}" target="_blank" rel="noopener noreferrer" style="color: var(--color-primary); text-decoration: none;">View Board↗</a></td>
         `;
     }
 
@@ -2384,7 +2389,7 @@ const App = {
         const result = await API.getQuerySuggestions(queryText ? queryText.trim() : '', 15);
         App.autocompleteState.suggestions = result.suggestions || [];
         App.autocompleteState.selectedIndex = -1;
-        
+
         if (App.autocompleteState.suggestions.length > 0) {
           App.renderAutocomplete(App.autocompleteState.suggestions);
         } else {
@@ -2411,12 +2416,12 @@ const App = {
 
     // Store suggestions - use index to look up from array to avoid attribute encoding issues
     dropdown.innerHTML = suggestions.map((suggestion, index) => {
-      const typeIcon = suggestion.type === 'saved' ? '💾' : 
-                       suggestion.type === 'history' ? '🕒' : '💡';
-      const platformBadge = suggestion.platform && suggestion.platform !== 'all' 
-        ? `<span class="autocomplete-item__platform">${suggestion.platform}</span>` 
+      const typeIcon = suggestion.type === 'saved' ? '💾' :
+        suggestion.type === 'history' ? '🕒' : '💡';
+      const platformBadge = suggestion.platform && suggestion.platform !== 'all'
+        ? `<span class="autocomplete-item__platform">${suggestion.platform}</span>`
         : '';
-      
+
       return `
         <div class="autocomplete-item ${index === App.autocompleteState.selectedIndex ? 'selected' : ''}" 
              data-index="${index}">
@@ -2576,16 +2581,16 @@ const App = {
 
       // Set the value
       input.value = text;
-      
+
       // Enable submit button
       const submitBtn = Utils.$('#query-submit');
       if (submitBtn) {
         submitBtn.disabled = !text.trim();
       }
-      
+
       // Focus input
       input.focus();
-      
+
       // Reset flag after a short delay
       setTimeout(() => {
         App.autocompleteState.isSelecting = false;
@@ -2631,6 +2636,171 @@ const App = {
   },
 
   /**
+   * Render Dashboard Page
+   */
+  async renderDashboard() {
+    const grid = Utils.$('#dashboard-grid');
+    if (!grid) return;
+
+    // Show loading state
+    grid.innerHTML = '<div class="loader-container"><div class="loader"></div></div>';
+
+    try {
+      // 1. Fetch Dashboards
+      const dashboards = await API.getDashboards();
+      let currentDashboard = null;
+
+      if (!dashboards || dashboards.length === 0) {
+        // Create default dashboard if none exist
+        try {
+          currentDashboard = await API.createDashboard('My Metrics');
+        } catch (e) {
+          // If fail to create, just show empty state
+        }
+      } else {
+        currentDashboard = dashboards[0]; // Default to first one for now
+      }
+
+      grid.innerHTML = '';
+
+      if (currentDashboard && currentDashboard.widgets && currentDashboard.widgets.length > 0) {
+        // Hide empty state if we have widgets
+        Utils.hide('#dashboard-empty');
+
+        // Render Widgets
+        // Sort by position or creation date if needed. Taking as-is for now.
+        for (const widget of currentDashboard.widgets) {
+          await App.renderWidget(widget, grid);
+        }
+      } else {
+        // Show empty state
+        Utils.show('#dashboard-empty');
+      }
+
+      // Render Connected Platforms
+      if (App.renderConnectedPlatforms) {
+        await App.renderConnectedPlatforms();
+      }
+
+    } catch (err) {
+      console.error('Error rendering dashboard:', err);
+      grid.innerHTML = `<div class="error-message">Failed to load dashboard: ${err.message}</div>`;
+    }
+  },
+
+  /**
+   * Render a single widget
+   */
+  async renderWidget(widget, container) {
+    const widgetEl = document.createElement('div');
+    widgetEl.className = 'dashboard-widget animate-fadeInUp';
+    widgetEl.style.cssText = `
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      padding: var(--space-4);
+      margin-bottom: var(--space-4);
+      position: relative;
+    `;
+
+    const widgetId = `widget-${widget.id}`;
+
+    widgetEl.innerHTML = `
+      <div class="widget-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-3);">
+        <h3 style="margin: 0; font-size: var(--font-size-md); font-weight: 600;">${Utils.escapeHtml(widget.title)}</h3>
+        <button class="btn btn--ghost btn--sm widget-delete-btn" data-id="${widget.id}" title="Remove widget">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="widget-body" id="${widgetId}-body">
+        <!-- Widget content -->
+      </div>
+    `;
+
+    container.appendChild(widgetEl);
+
+    // Add delete handler
+    const deleteBtn = widgetEl.querySelector('.widget-delete-btn');
+    deleteBtn.addEventListener('click', async () => {
+      if (confirm('Remove this widget?')) {
+        try {
+          await API.deleteWidget(widget.id);
+          widgetEl.remove();
+          App.showToast('Widget removed', 'info');
+        } catch (e) {
+          App.showToast('Failed to remove widget', 'error');
+        }
+      }
+    });
+
+    // Render content based on type
+    const bodyEl = widgetEl.querySelector('.widget-body');
+
+    if (widget.widget_type === 'chart') {
+      const chartCanvasId = `${widgetId}-canvas`;
+      bodyEl.innerHTML = `<canvas id="${chartCanvasId}"></canvas>`;
+
+      // Use existing renderChart logic
+      // widget.data contains the chart config object
+      setTimeout(() => {
+        App.renderChart(chartCanvasId, widget.data, bodyEl);
+      }, 0);
+    } else {
+      bodyEl.innerHTML = `<p>${JSON.stringify(widget.data)}</p>`;
+    }
+  },
+
+  /**
+   * Handle Pin action
+   */
+  async handlePin(chartId) {
+    const chartContainer = document.querySelector(`[id="chart-controls-${chartId}"]`).closest('.chat-chart-container'); // Find parent
+    // Wait, chartId is the canvas id. Controls have unrelated ID. 
+    // Wait, the handler in setupChartControls has closure over 'container' (which is chartContainer).
+    // So if I pass chartId, I can get the container via DOM if needed, OR I can just use the config if I stored it.
+    // In setupChartControls logic below: `const pinBtn = container.querySelector...`
+    // I can pass `container` to handlePin or just get the config from container.dataset.chartConfig
+
+    // Getting the container from DOM: canvas is inside.
+    const canvas = document.getElementById(chartId);
+    if (!canvas) return;
+    const container = canvas.parentElement; // .chat-chart-container
+
+    const configStr = container.dataset.chartConfig;
+    if (!configStr) {
+      App.showToast('Error: No chart data found to pin', 'error');
+      return;
+    }
+
+    const config = JSON.parse(configStr);
+    const title = config.options?.plugins?.title?.text || config.data?.datasets?.[0]?.label || 'Chart Widget';
+
+    try {
+      // Get dashboards to find ID
+      const dashboards = await API.getDashboards();
+      let dashboardId;
+
+      if (dashboards && dashboards.length > 0) {
+        dashboardId = dashboards[0].id; // Use first for now
+      } else {
+        const newDb = await API.createDashboard('My Metrics');
+        dashboardId = newDb.id;
+      }
+
+      await API.createWidget(dashboardId, title, 'chart', config);
+      App.showToast('Pinned to Dashboard!', 'success');
+
+      // Pulse animation logic could go here
+    } catch (e) {
+      console.error('Pin check:', e);
+      App.showToast('Failed to pin widget', 'error');
+    }
+  },
+
+  /**
    * Render Chart.js Chart
    */
   /**
@@ -2640,12 +2810,12 @@ const App = {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    
+
     // Store chart instance for controls
     if (!App.chartInstances) {
       App.chartInstances = {};
     }
-    
+
     // Register plugins if available (graceful fallback if plugins not loaded)
     try {
       if (typeof Chart !== 'undefined') {
@@ -2693,7 +2863,7 @@ const App = {
             '#083344', '#0e7490', '#14532d', '#166534', '#78350f',
             '#92400e', '#581c87', '#6b21a8', '#7e22ce'
           ];
-          
+
           // Assign different color to each data point with shiny borders
           if (ds.data && Array.isArray(ds.data)) {
             ds.backgroundColor = ds.data.map((_, index) => vibrantColors[index % vibrantColors.length]);
@@ -2707,7 +2877,7 @@ const App = {
             ds.backgroundColor = vibrantColors[i % vibrantColors.length];
             ds.borderColor = vibrantColors[i % vibrantColors.length];
           }
-          
+
           ds.borderWidth = 2.5; // Slightly thicker for more shine visibility
           ds.borderRadius = 8; // Rounded top corners
           ds.barPercentage = 0.7;
@@ -2742,7 +2912,7 @@ const App = {
           ];
           // Ensure colors are applied per data point
           if (ds.data && Array.isArray(ds.data)) {
-            ds.backgroundColor = ds.data.map((_, idx) => 
+            ds.backgroundColor = ds.data.map((_, idx) =>
               ds.backgroundColor[idx % ds.backgroundColor.length]
             );
           }
@@ -2841,42 +3011,42 @@ const App = {
       responsive: true,
       maintainAspectRatio: false, // Keep false to fit container properly
       plugins: {
-          legend: {
-            display: config.type === 'doughnut' || config.type === 'pie',
-            position: 'bottom',
-            align: 'center',
-            labels: {
-              usePointStyle: true,
-              padding: 15,
-              boxWidth: 14,
-              boxHeight: 14,
-              color: '#ffffff', // Bright white for maximum visibility
-              font: { 
-                size: 14,
-                weight: '600',
-                family: "'Inter', sans-serif"
-              },
-              generateLabels: function(chart) {
-                try {
-                  const original = Chart.defaults.plugins.legend.labels.generateLabels;
-                  const labels = original(chart);
-                  // Make labels more visible
-                  labels.forEach(label => {
-                    label.fontColor = '#ffffff';
-                    label.fillStyle = label.strokeStyle;
-                  });
-                  return labels;
-                } catch (e) {
-                  // Fallback to default labels
-                  return Chart.defaults.plugins.legend.labels.generateLabels(chart);
-                }
-              }
+        legend: {
+          display: config.type === 'doughnut' || config.type === 'pie',
+          position: 'bottom',
+          align: 'center',
+          labels: {
+            usePointStyle: true,
+            padding: 15,
+            boxWidth: 14,
+            boxHeight: 14,
+            color: '#ffffff', // Bright white for maximum visibility
+            font: {
+              size: 14,
+              weight: '600',
+              family: "'Inter', sans-serif"
             },
-            // Better spacing for legend
-            fullSize: false,
-            maxWidth: 600,
-            maxHeight: 100
+            generateLabels: function (chart) {
+              try {
+                const original = Chart.defaults.plugins.legend.labels.generateLabels;
+                const labels = original(chart);
+                // Make labels more visible
+                labels.forEach(label => {
+                  label.fontColor = '#ffffff';
+                  label.fillStyle = label.strokeStyle;
+                });
+                return labels;
+              } catch (e) {
+                // Fallback to default labels
+                return Chart.defaults.plugins.legend.labels.generateLabels(chart);
+              }
+            }
           },
+          // Better spacing for legend
+          fullSize: false,
+          maxWidth: 600,
+          maxHeight: 100
+        },
         tooltip: {
           enabled: false, // Disable default
           external: externalTooltipHandler
@@ -2901,81 +3071,81 @@ const App = {
         } : {}),
         // DataLabels plugin (optional - only if plugin is loaded)
         ...(typeof ChartDataLabels !== 'undefined' ? {
-            datalabels: {
-              display: config.type === 'pie' || config.type === 'doughnut' ? 'auto' : false,
-              color: '#ffffff',
-              font: {
-                size: 13,
-                weight: '700',
-                family: "'Inter', sans-serif"
-              },
-              textStrokeColor: '#000000',
-              textStrokeWidth: 2,
-              textShadowBlur: 4,
-              textShadowColor: 'rgba(0, 0, 0, 0.8)',
-              formatter: (value, ctx) => {
-                if (config.type === 'pie' || config.type === 'doughnut') {
-                  const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
-                  const percentage = ((value / total) * 100).toFixed(1);
-                  return percentage > 5 ? percentage + '%' : '';
-                }
-                return '';
+          datalabels: {
+            display: config.type === 'pie' || config.type === 'doughnut' ? 'auto' : false,
+            color: '#ffffff',
+            font: {
+              size: 13,
+              weight: '700',
+              family: "'Inter', sans-serif"
+            },
+            textStrokeColor: '#000000',
+            textStrokeWidth: 2,
+            textShadowBlur: 4,
+            textShadowColor: 'rgba(0, 0, 0, 0.8)',
+            formatter: (value, ctx) => {
+              if (config.type === 'pie' || config.type === 'doughnut') {
+                const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                const percentage = ((value / total) * 100).toFixed(1);
+                return percentage > 5 ? percentage + '%' : '';
               }
+              return '';
             }
+          }
         } : {})
       },
       scales: (config.type === 'doughnut' || config.type === 'pie') ? {} : {
-            y: {
-              beginAtZero: config.type !== 'scatter',
-              grid: {
-                color: 'rgba(255, 255, 255, 0.1)', // Brighter grid
-                drawBorder: false,
-                borderDash: [5, 5],
-                lineWidth: 1
-              },
-              ticks: {
-                padding: 8,
-                maxTicksLimit: 8,
-                color: '#e5e7eb', // Much brighter
-                font: { 
-                  size: 12,
-                  weight: '500',
-                  family: "'Inter', sans-serif"
-                },
-                backdropColor: 'rgba(17, 24, 39, 0.7)',
-                backdropPadding: 4
-              },
-              border: { 
-                display: true,
-                color: 'rgba(255, 255, 255, 0.2)' // Visible border
-              }
-            },
-            x: {
-              grid: { 
-                display: false, // Remove x-axis grid for cleaner look
-                color: 'rgba(255, 255, 255, 0.05)',
-                lineWidth: 1
-              },
-              ticks: {
-                padding: 8,
-                maxRotation: 45,
-                minRotation: 0,
-                color: '#e5e7eb', // Much brighter
-                font: { 
-                  size: 11,
-                  weight: '500',
-                  family: "'Inter', sans-serif"
-                },
-                backdropColor: 'rgba(17, 24, 39, 0.7)',
-                backdropPadding: 4,
-                maxTicksLimit: 10 // Limit number of x-axis labels
-              },
-              border: { 
-                display: true,
-                color: 'rgba(255, 255, 255, 0.2)' // Visible border
-              }
-            }
+        y: {
+          beginAtZero: config.type !== 'scatter',
+          grid: {
+            color: 'rgba(255, 255, 255, 0.1)', // Brighter grid
+            drawBorder: false,
+            borderDash: [5, 5],
+            lineWidth: 1
           },
+          ticks: {
+            padding: 8,
+            maxTicksLimit: 8,
+            color: '#e5e7eb', // Much brighter
+            font: {
+              size: 12,
+              weight: '500',
+              family: "'Inter', sans-serif"
+            },
+            backdropColor: 'rgba(17, 24, 39, 0.7)',
+            backdropPadding: 4
+          },
+          border: {
+            display: true,
+            color: 'rgba(255, 255, 255, 0.2)' // Visible border
+          }
+        },
+        x: {
+          grid: {
+            display: false, // Remove x-axis grid for cleaner look
+            color: 'rgba(255, 255, 255, 0.05)',
+            lineWidth: 1
+          },
+          ticks: {
+            padding: 8,
+            maxRotation: 45,
+            minRotation: 0,
+            color: '#e5e7eb', // Much brighter
+            font: {
+              size: 11,
+              weight: '500',
+              family: "'Inter', sans-serif"
+            },
+            backdropColor: 'rgba(17, 24, 39, 0.7)',
+            backdropPadding: 4,
+            maxTicksLimit: 10 // Limit number of x-axis labels
+          },
+          border: {
+            display: true,
+            color: 'rgba(255, 255, 255, 0.2)' // Visible border
+          }
+        }
+      },
       layout: {
         padding: {
           top: config.type === 'doughnut' || config.type === 'pie' ? 10 : 15,
@@ -3012,13 +3182,13 @@ const App = {
     canvas.style.maxWidth = '100%';
     canvas.style.height = 'auto';
     canvas.style.boxSizing = 'border-box';
-    
+
     // Ensure canvas fits container properly
     const chartContainer = container || canvas.closest('.chat-chart-container');
     if (chartContainer) {
       chartContainer.style.overflow = 'hidden';
     }
-    
+
     try {
       const chartInstance = new Chart(ctx, {
         type: config.type,
@@ -3033,15 +3203,15 @@ const App = {
           }
         }
       });
-      
+
       // Store chart instance
       App.chartInstances[canvasId] = chartInstance;
-      
+
       // Setup chart controls if container provided
       if (container) {
         App.setupChartControls(canvasId, container, config);
       }
-      
+
       return chartInstance;
     } catch (e) {
       console.error("Chart render error:", e);
@@ -3082,27 +3252,32 @@ const App = {
     const exportBtn = container.querySelector('[data-action="export"]');
     if (exportBtn) {
       exportBtn.addEventListener('click', () => {
+        // ... existing export logic ...
+        // Re-implementing export logic here to match original or just wrap call?
+        // It's cleaner to reuse what I saw, but I need to be careful with 'chartInstance' scope.
+        // The original code uses 'chartInstance' from closure or App.chartInstances[chartId].
+        // Let's use the exact original code plus the new pin handler.
+
         const chartInstance = App.chartInstances[chartId];
         if (chartInstance) {
           // Export with high quality and proper background
           const canvas = chartInstance.canvas;
-          const originalBackgroundColor = chartInstance.options.plugins?.legend?.labels?.color || '#e5e7eb';
-          
+
           // Create a temporary canvas with higher resolution
           const exportCanvas = document.createElement('canvas');
           const scale = 2; // 2x resolution for crisp export
           exportCanvas.width = canvas.width * scale;
           exportCanvas.height = canvas.height * scale;
           const exportCtx = exportCanvas.getContext('2d');
-          
+
           // Fill with dark background (matching the UI)
           exportCtx.fillStyle = '#111827'; // Dark background
           exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
-          
+
           // Draw the chart scaled up
           exportCtx.scale(scale, scale);
           exportCtx.drawImage(canvas, 0, 0);
-          
+
           // Convert to image with high quality
           const url = exportCanvas.toDataURL('image/png', 1.0); // Maximum quality
           const link = document.createElement('a');
@@ -3113,30 +3288,38 @@ const App = {
       });
     }
 
-      // Reset zoom button (only if zoom plugin is available)
-      const resetZoomBtn = container.querySelector('[data-action="reset-zoom"]');
-      if (resetZoomBtn && App.chartInstances[chartId] && typeof zoomPlugin !== 'undefined') {
-        const chartInstance = App.chartInstances[chartId];
-        
-        // Show reset button when zoomed
-        chartInstance.canvas.addEventListener('wheel', () => {
-          setTimeout(() => {
-            if (chartInstance.scales && (chartInstance.scales.x?.min !== undefined || chartInstance.scales.y?.min !== undefined)) {
-              resetZoomBtn.style.display = 'inline-flex';
-            }
-          }, 100);
-        });
+    // Pin button
+    const pinBtn = container.querySelector('[data-action="pin"]');
+    if (pinBtn) {
+      pinBtn.addEventListener('click', () => {
+        App.handlePin(chartId);
+      });
+    }
 
-        resetZoomBtn.addEventListener('click', () => {
-          if (chartInstance && chartInstance.resetZoom) {
-            chartInstance.resetZoom();
-            resetZoomBtn.style.display = 'none';
+    // Reset zoom button (only if zoom plugin is available)
+    const resetZoomBtn = container.querySelector('[data-action="reset-zoom"]');
+    if (resetZoomBtn && App.chartInstances[chartId] && typeof zoomPlugin !== 'undefined') {
+      const chartInstance = App.chartInstances[chartId];
+
+      // Show reset button when zoomed
+      chartInstance.canvas.addEventListener('wheel', () => {
+        setTimeout(() => {
+          if (chartInstance.scales && (chartInstance.scales.x?.min !== undefined || chartInstance.scales.y?.min !== undefined)) {
+            resetZoomBtn.style.display = 'inline-flex';
           }
-        });
-      } else if (resetZoomBtn) {
-        // Hide reset button if zoom plugin not available
-        resetZoomBtn.style.display = 'none';
-      }
+        }, 100);
+      });
+
+      resetZoomBtn.addEventListener('click', () => {
+        if (chartInstance && chartInstance.resetZoom) {
+          chartInstance.resetZoom();
+          resetZoomBtn.style.display = 'none';
+        }
+      });
+    } else if (resetZoomBtn) {
+      // Hide reset button if zoom plugin not available
+      resetZoomBtn.style.display = 'none';
+    }
   },
 
   /**

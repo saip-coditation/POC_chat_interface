@@ -530,10 +530,10 @@ class IntentDetector:
         # Check for Trello-specific keywords first, especially "card" which is more specific
         if "trello" in query_lower or "board" in query_lower or "card" in query_lower:
             # Check for write operations first (delete/remove prioritized over create/add)
-            if any(word in query_lower for word in ["delete", "remove"]) and "card" in query_lower:
+            if any(word in query_lower for word in ["delete", "remove"]) and ("card" in query_lower or ("list" in query_lower and "board" in query_lower)):
                 logger.info("[INTENT] Matched: delete_card (Trello)")
                 return DetectedIntent(IntentType.DATA_WRITE, 0.9, tool_id="delete_card", platform="trello")
-            elif any(word in query_lower for word in ["create", "add", "new", "make"]) and "card" in query_lower:
+            elif any(word in query_lower for word in ["create", "add", "new", "make"]) and ("card" in query_lower or ("list" in query_lower and "board" in query_lower)):
                 logger.info("[INTENT] Matched: create_card (Trello) - card operation detected")
                 return DetectedIntent(IntentType.DATA_WRITE, 0.9, tool_id="create_card", platform="trello")
             elif "board" in query_lower and ("list" not in query_lower and "card" not in query_lower):

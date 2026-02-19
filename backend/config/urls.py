@@ -13,6 +13,7 @@ urlpatterns = [
     path('api/auth/', include('apps.authentication.urls')),
     path('api/platforms/', include('apps.platforms.urls')),
     path('api/queries/', include('apps.queries.urls')),
+    path('api/', include('apps.dashboards.urls')),
     
     # Health check for Render debugging
     path('api/health/', include([

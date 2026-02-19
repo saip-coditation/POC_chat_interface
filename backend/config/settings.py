@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'apps.authentication',
     'apps.platforms',
     'apps.queries',
+    'apps.dashboards',
     
     # Local apps - AI Data Orchestration Platform
     'catalog',

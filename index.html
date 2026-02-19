@@ -671,25 +671,38 @@
         <div class="dashboard container">
           <div class="dashboard__header">
             <h1 class="dashboard__title">Dashboard</h1>
-            <p class="dashboard__subtitle">Manage your connected platforms</p>
+            <p class="dashboard__subtitle">Your pinned insights and connected platforms</p>
           </div>
 
-          <div class="dashboard__grid" id="dashboard-grid">
-            <!-- Platform cards injected by JS -->
+          <!-- Pinned Widgets Section -->
+          <div class="dashboard-section">
+             <h2 class="section-title">Pinned Insights</h2>
+             <div class="dashboard__grid" id="dashboard-grid">
+               <!-- Pinned widgets injected here -->
+             </div>
+             <div id="dashboard-empty" class="dashboard-empty-widget" style="display:none; text-align: center; padding: 40px; color: var(--text-secondary); background: var(--bg-card); border-radius: var(--radius-lg); border: 1px dashed var(--border-light);">
+               <p>No pinned widgets yet. Ask a query in the chat and pin the chart!</p>
+             </div>
           </div>
 
-          <!-- Empty state -->
-          <div class="empty-state" id="dashboard-empty">
-            <div class="empty-state__icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                <line x1="3" y1="9" x2="21" y2="9" />
-                <line x1="9" y1="21" x2="9" y2="9" />
-              </svg>
+          <!-- Connected Platforms Section -->
+          <div class="dashboard-section" style="margin-top: 40px;">
+            <h2 class="section-title">Connected Platforms</h2>
+            <div class="dashboard__grid" id="platforms-grid">
+              <!-- Platform cards injected by JS -->
             </div>
-            <h3 class="empty-state__title">No platforms connected</h3>
-            <p class="empty-state__text">Connect Stripe or Zoho CRM to start querying your data</p>
-            <a href="#landing" class="btn btn--primary">Connect a Platform</a>
+            <div class="empty-state" id="platforms-empty" style="display:none;">
+               <div class="empty-state__icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                    <line x1="3" y1="9" x2="21" y2="9" />
+                    <line x1="9" y1="21" x2="9" y2="9" />
+                  </svg>
+                </div>
+               <h3 class="empty-state__title">No platforms connected</h3>
+               <p class="empty-state__text">Connect your platforms to start querying data</p>
+               <button class="btn btn--primary" onclick="App.navigate('connect')">Connect Platform</button>
+            </div>
           </div>
 
           <div class="disclaimer mt-8">

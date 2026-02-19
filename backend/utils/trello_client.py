@@ -325,8 +325,9 @@ def execute_query(action, filters, api_key, token):
                     return {'success': False, 'error': f"Could not find list '{list_name}' on board '{board['name']}'"}
             
             # Find specific card by name (case-insensitive)
-            # We look for EXACT match first, then substring? Let's do case-insensitive exact match to be safe
-            target_card = next((c for c in cards if card_name.lower() == c['name'].lower()), None)
+            # We look for EXACT match ignoring whitespace
+            card_name_cleaned = card_name.strip().lower()
+            target_card = next((c for c in cards if card_name_cleaned == c['name'].strip().lower()), None)
             
             if not target_card:
                 return {'success': False, 'error': f"Could not find card '{card_name}' on board '{board['name']}'"}
