@@ -215,8 +215,8 @@ Available actions:
 1. "Contacts from Mumbai" -> filters: {city: "Mumbai"}.
 2. "Won deals" -> action: "list_deals", filters: {stage: "Closed Won"}.
 3. "Big deals" or "over 10k" or "over $10,000" -> filters: {amount_gt: 10000}.
-4. "Deals over $60,000" or "deals above 60000" -> filters: {amount_gt: 60000}.
-5. Extract numeric values from amounts: "$60,000" -> 60000, "10k" -> 10000, "5k" -> 5000.
+4. "Deals over $60,000" or "deals above 60000" or "deals higher than 70000" -> filters: {amount_gt: <extract number>}.
+5. Extract numeric values from amounts: "$60,000" -> 60000, "10k" -> 10000, "5k" -> 5000, "₹55000" -> 55000.
 6. "Hot leads" -> action: "list_leads", filters: {status: "Hot"}.
 7. "Create lead 'John Doe' at 'Acme Corp'" -> action: "create_lead", filters: {last_name: "Doe", company: "Acme Corp", email: "john@acme.com" (if email present)}.
 8. "Update deal '12345' to 'Closed Won'" -> action: "update_deal", filters: {deal_id: "12345", stage: "Closed Won"}.

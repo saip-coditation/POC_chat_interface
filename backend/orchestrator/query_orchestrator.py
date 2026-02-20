@@ -925,9 +925,9 @@ class QueryOrchestrator:
         # Fallback: Direct regex extraction for amount filters and period filters (works even if AI fails)
         query_lower = query.lower()
         amount_patterns = [
-            r'amount\s*(?:is\s*)?(?:greater\s*than|more\s*than|above|over|>=|>)\s*\$?([0-9,]+)',
-            r'(?:greater\s*than|more\s*than|above|over)\s*\$?([0-9,]+)',
-            r'\$?([0-9,]+)\s*(?:or\s*more|and\s*above)',
+            r'amount\s*(?:is\s*)?(?:greater\s*than|more\s*than|higher\s*than|above|over|>=|>)\s*\$?₹?([0-9,]+)',
+            r'(?:greater\s*than|more\s*than|higher\s*than|above|over)\s*\$?₹?([0-9,]+)',
+            r'\$?₹?([0-9,]+)\s*(?:or\s*more|and\s*above)',
         ]
         
         extracted_amount_gt = None
