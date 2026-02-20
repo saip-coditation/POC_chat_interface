@@ -596,11 +596,17 @@ class WorkflowExecutor:
                     result = github_client.fetch_repos(token, filters=params)
             elif tool_name == "list_commits":
                 repo_name = params.get('repo_name', '')
+                if not repo_name:
+                    raise ValueError(
+                        "No repository specified. Please specify a repo, e.g. 'commits for POC_chat_interface' or 'commits in owner/repo'."
+                    )
                 owner, repo = self._resolve_github_repo(token, repo_name, github_client)
                 if owner and repo:
                     result = github_client.fetch_commits(token, owner, repo, filters=params)
                 else:
-                    result = github_client.fetch_repos(token, filters=params)
+                    raise ValueError(
+                        f"Repository '{repo_name}' not found. Check the name (e.g. POC_chat_interface) or use owner/repo format."
+                    )
             else:
                 raise ValueError(f"Unknown GitHub tool: {tool_name}")
             

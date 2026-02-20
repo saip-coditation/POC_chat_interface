@@ -1045,8 +1045,8 @@ class QueryOrchestrator:
                     # Extract filters - could be in 'filters' key or at root level
                     filters = query_params.get('filters', {})
                     if not filters and isinstance(query_params, dict):
-                        # If no 'filters' key, check if params are at root (like amount_gt directly)
-                        filter_keys = ['amount_gt', 'stage', 'city', 'location', 'email', 'status', 'limit']
+                        # If no 'filters' key, check if params are at root (like amount_gt, repo_name)
+                        filter_keys = ['amount_gt', 'stage', 'city', 'location', 'email', 'status', 'limit', 'repo_name']
                         filters = {k: v for k, v in query_params.items() if k in filter_keys}
                     
                     # Use regex-extracted value if AI didn't extract it
