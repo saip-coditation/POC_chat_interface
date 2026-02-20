@@ -1166,22 +1166,26 @@ class QueryOrchestrator:
         # Extract repo name for GitHub queries (manual extraction as fallback)
         query_lower = query.lower()
         if any(keyword in query_lower for keyword in ['commit', 'issue', 'pr', 'pull request', 'repo']):
-            # Pattern 1: "of <repo_name>" or "from <repo_name>" or "in <repo_name>"
+            # "for X" and "in X" - prefer "for" to avoid capturing "github" from "in github"
             repo_patterns = [
+                r'\bfor\s+([a-zA-Z0-9_\-\.\/]+)',   # "commits for POC_chat_interface"
                 r'\bof\s+([a-zA-Z0-9_\-\.\/]+)',
                 r'\bfrom\s+([a-zA-Z0-9_\-\.\/]+)',
-                r'\bin\s+([a-zA-Z0-9_\-\.\/]+)\b',
-                r'\bfor\s+([a-zA-Z0-9_\-\.\/]+)',
                 r'\brepo\s+([a-zA-Z0-9_\-\.\/]+)',
+                r'\bin\s+([a-zA-Z0-9_\-\.\/]+)\b',   # "commits in X" - last to avoid "in github"
             ]
-            
+            repo_stop_words = {'the', 'a', 'my', 'all', 'recent', 'latest', 'last',
+                              'github', 'trello', 'stripe', 'zoho', 'salesforce'}  # platform names
             for pattern in repo_patterns:
                 match = re.search(pattern, query, re.IGNORECASE)
                 if match:
                     repo_name = match.group(1).strip()
-                    # Filter out common words that aren't repo names
-                    if repo_name.lower() not in ['the', 'a', 'my', 'all', 'recent', 'latest', 'last']:
+                    if repo_name.lower() not in repo_stop_words:
                         inputs['repo_name'] = repo_name
+                        if 'filters' not in inputs:
+                            inputs['filters'] = {}
+                        inputs['filters']['repo_name'] = repo_name
+                        logger.info(f"[QUERY PARAMS] Extracted repo_name via regex: '{repo_name}'")
                         break
         
         # Extract Trello parameters (board_name, list_name, card name) - Manual extraction fallback
