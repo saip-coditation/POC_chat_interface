@@ -1323,16 +1323,17 @@ class QueryOrchestrator:
             # Extract card name for write operations (create/delete) - if not specified, will use default
             if any(word in query_lower for word in ['create', 'add', 'new', 'make', 'delete', 'remove']):
                 card_name_patterns = [
-                    r'card\s+called\s+[\'"]([^\'"]+)[\'"]',  # "card called 'My Task'" - captures quoted name
-                    r'card\s+called\s+([^\s]+(?:\s+[^\s]+)*?)(?:\s+in|\s+inside|\s+on|$)',  # "card called My Task in" - captures unquoted name
-                    r'(?:create|delete|remove|add|new)\s+(?:a\s+)?card\s+[\'"]([^\'"]+)[\'"]',  # "create a card 'My Task'" - captures quoted name
-                    r'(?:create|delete|remove|add|new)\s+(?:a\s+)?card\s+called\s+[\'"]([^\'"]+)[\'"]',  # "create a card called 'My Task'" - captures quoted name
-                    r'card\s+[\'"]([^\'"]+)[\'"]\s+(?:in|inside|on)',  # "card 'My Task' in" - captures quoted name
-                    r'(?:create|delete|remove|add|new)\s+(?:a\s+)?card\s+([^\s]+(?:\s+[^\s]+)*?)(?:\s+in|\s+inside|\s+on|$)',  # "create card My Task in" - captures unquoted name
-                    r'(?:create|add|new|make)\s+[\'"]([^\'"]+)[\'"]\s+(?:in|inside|on|to)',  # "Add 'Review PR' in"
-                    r'(?:create|add|new|make)\s+[\'"]([^\'"]+)[\'"]',  # "Add 'Review PR'" (generic)
+                    r'card\s+called\s+[\'"]([^\'"]+)[\'"]',  # "card called 'My Task'"
+                    r'card\s+called\s+([^\s]+(?:\s+[^\s]+)*?)(?:\s+in|\s+inside|\s+on|$)',  # "card called My Task in"
+                    r'(?:create|delete|remove|add|new)\s+(?:a\s+)?card\s+[\'"]([^\'"]+)[\'"]',  # "create a card 'My Task'"
+                    r'(?:create|delete|remove|add|new)\s+(?:a\s+)?card\s+called\s+[\'"]([^\'"]+)[\'"]',  # "create a card called 'My Task'"
+                    r'card\s+[\'"]([^\'"]+)[\'"]\s+(?:in|inside|on)',  # "card 'My Task' in"
+                    r'(?:create|add|new|make)\s+[\'"]([^\'"]+)[\'"]\s+(?:in|inside|on|to)',  # "Add 'Hi Sai how are you ?' in"
+                    r'(?:create|add|new|make)\s+[\'"]([^\'"]+)[\'"]',  # "Add 'Review PR'"
+                    r'(?:add|create|new|make)\s+([^\'"\s]+(?:\s+[^\'"\s]+)*?)\s+(?:in|inside|on|to)\s+',  # "Add Hi Sai how are you in" (unquoted)
+                    r'(?:create|delete|remove|add|new)\s+(?:a\s+)?card\s+([^\s]+(?:\s+[^\s]+)*?)(?:\s+in|\s+inside|\s+on|$)',  # "create card My Task in"
                     r'(?:delete|remove)\s+[\'"]([^\'"]+)[\'"]\s+(?:in|inside|on|from)',  # "Remove 'Review PR' in"
-                    r'(?:delete|remove)\s+[\'"]([^\'"]+)[\'"]',  # "Remove 'Review PR'" (generic)
+                    r'(?:delete|remove)\s+[\'"]([^\'"]+)[\'"]',  # "Remove 'Review PR'"
                 ]
                 for pattern in card_name_patterns:
                     match = re.search(pattern, query, re.IGNORECASE)

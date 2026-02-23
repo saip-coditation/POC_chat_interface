@@ -464,7 +464,16 @@ class IntentDetector:
             if "account" in query_lower or "company" in query_lower or "everything" in query_lower:
                 return DetectedIntent(IntentType.DATA_QUERY, 0.8, tool_id="list_accounts", platform="zoho")
 
-        # Check for informational/knowledge questions FIRST (before platform-specific detection)
+        # Trello CREATE/DELETE CARD - check BEFORE informational patterns to avoid "Add X how are you" matching "how"
+        if "trello" in query_lower or "board" in query_lower or "card" in query_lower:
+            if any(word in query_lower for word in ["delete", "remove"]) and ("card" in query_lower or ("list" in query_lower and "board" in query_lower)):
+                logger.info("[INTENT] Matched: delete_card (Trello)")
+                return DetectedIntent(IntentType.DATA_WRITE, 0.9, tool_id="delete_card", platform="trello")
+            elif any(word in query_lower for word in ["create", "add", "new", "make"]) and ("card" in query_lower or ("list" in query_lower and "board" in query_lower)):
+                logger.info("[INTENT] Matched: create_card (Trello) - add/create card before knowledge check")
+                return DetectedIntent(IntentType.DATA_WRITE, 0.9, tool_id="create_card", platform="trello")
+
+        # Check for informational/knowledge questions (after Trello create/delete so "Add X in To Do Card" works)
         informational_patterns = [
             r'\b(when|how|what|why|where)\s+(should|do|can|could|would|is|are|does|did|to)',
             r'\b(when|how|what|why|where)\s+to\s+',
@@ -526,17 +535,9 @@ class IntentDetector:
                     )
                 break
         
-        # 3. Trello Fallback (moved BEFORE GitHub to prioritize card operations)
-        # Check for Trello-specific keywords first, especially "card" which is more specific
+        # 3. Trello Fallback (create/delete already checked above)
         if "trello" in query_lower or "board" in query_lower or "card" in query_lower:
-            # Check for write operations first (delete/remove prioritized over create/add)
-            if any(word in query_lower for word in ["delete", "remove"]) and ("card" in query_lower or ("list" in query_lower and "board" in query_lower)):
-                logger.info("[INTENT] Matched: delete_card (Trello)")
-                return DetectedIntent(IntentType.DATA_WRITE, 0.9, tool_id="delete_card", platform="trello")
-            elif any(word in query_lower for word in ["create", "add", "new", "make"]) and ("card" in query_lower or ("list" in query_lower and "board" in query_lower)):
-                logger.info("[INTENT] Matched: create_card (Trello) - card operation detected")
-                return DetectedIntent(IntentType.DATA_WRITE, 0.9, tool_id="create_card", platform="trello")
-            elif "board" in query_lower and ("list" not in query_lower and "card" not in query_lower):
+            if "board" in query_lower and ("list" not in query_lower and "card" not in query_lower):
                 return DetectedIntent(IntentType.DATA_QUERY, 0.8, tool_id="list_boards", platform="trello")
             elif "card" in query_lower:
                 return DetectedIntent(IntentType.DATA_QUERY, 0.8, tool_id="list_cards", platform="trello")
